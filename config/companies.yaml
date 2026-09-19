@@ -1,0 +1,52 @@
+# Company boards to poll. Greenhouse/Lever/Ashby have no global search, so each company is listed.
+# The value is the board token from the careers URL:
+#   greenhouse: boards.greenhouse.io/<token>
+#   lever:      jobs.lever.co/<token>
+#   ashby:      jobs.ashbyhq.com/<token>
+# Invalid tokens are logged and skipped, so pruning this list is safe. Verify and edit freely.
+
+greenhouse:
+  - gitlab
+  - databricks
+  - elastic
+  - grafanalabs
+  - fivetran
+  - cockroachlabs
+  - mongodb
+  - twilio
+  - datadog
+  - canonical
+  - wikimedia
+  - remote
+
+lever:
+  - kraken
+  - binance
+  - neighbor
+  - jobgether
+  - sonatype
+
+ashby:
+  - supabase
+  - posthog
+  - prefect
+  - astronomer
+  - hightouch
+  - motherduck
+  - deel
+  - zapier
+  - linear
+  - vercel
+  - sentry
+
+remotive:
+  categories: [data, software-dev, devops]
+
+weworkremotely:
+  feeds:
+    - https://weworkremotely.com/categories/remote-programming-jobs.rss
+    - https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss
+    - https://weworkremotely.com/remote-jobs.rss
+
+himalayas:
+  pages: 5                   # 20 jobs per page

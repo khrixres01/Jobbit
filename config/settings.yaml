@@ -1,0 +1,65 @@
+# Jobbit pipeline settings. Secrets live in env vars / GitHub Secrets, never here.
+
+filters:
+  max_age_days: 7            # discard postings older than this
+  keep_undated: false        # postings with no date can't be verified as recent
+  # Cheap title pre-filter before any Claude call. Case-insensitive substring match on title.
+  title_include:
+    - data engineer
+    - analytics engineer
+    - data analyst
+    - data platform
+    - data architect
+    - bi engineer
+    - bi developer
+    - business intelligence
+    - power bi
+    - fabric
+    - etl
+    - dbt
+    - data governance
+    - data operations
+    - dataops
+    - analytics
+  title_exclude:
+    - intern
+    - principal
+    - director
+    - vp
+    - head of
+    - staff
+    - manager
+    - sales
+    - account executive
+
+llm:
+  provider: gemini           # gemini | anthropic
+  gemini_requests_per_minute: 8   # free tier allows ~10 RPM; stay under it
+  # Each task lists models in order of preference. Free-tier quota is per model and small
+  # (gemini-3.6-flash allows only 20 requests/day), so when one is exhausted or overloaded
+  # the next is used. When all are exhausted the run stops that stage and resumes next run.
+  models:
+    gemini:
+      scoring: [gemini-3.1-flash-lite, gemini-3.5-flash-lite, gemini-flash-lite-latest]
+      tailoring: [gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash]
+    anthropic:
+      scoring: claude-haiku-4-5-20251001
+      tailoring: claude-sonnet-5
+
+scoring:
+  threshold: 70              # applications created only at or above this score
+  max_scores_per_run: 40     # hard cap on LLM scoring calls per run
+  max_scores_per_day: 180    # Gemini free tier is ~250 requests/day on Flash, shared with tailoring
+
+tailoring:
+  max_tailors_per_run: 8
+  max_tailors_per_day: 30    # each can take up to 2 requests (regeneration on validation failure)
+  career_start: 2022-01      # first professional role; used for "N+ years"
+  validation_retries: 1      # regenerate once if the fabrication guard flags output
+
+http:
+  timeout_seconds: 25
+  user_agent: "Jobbit/0.1 (personal job search; contact via GitHub khrixres01)"
+
+storage:
+  bucket: documents
