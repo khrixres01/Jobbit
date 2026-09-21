@@ -1,70 +1,103 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
-import { STATUS_LABEL, STATUS_ORDER, type Application, type Status } from "@/lib/types";
+import AppRow from "@/components/AppRow";
+import Funnel from "@/components/Funnel";
+import { Card, Empty, StatTile } from "@/components/ui";
+import { fetchApplications, fetchFunnel, fetchRuns, setStatus, timeAgo, type FunnelStage, type Run } from "@/lib/data";
+import type { Application, Status } from "@/lib/types";
 
-const COLLAPSED_BY_DEFAULT: Status[] = ["skipped", "applied_manually", "submitted"];
-
-export default function ListPage() {
+export default function Overview() {
   const [apps, setApps] = useState<Application[] | null>(null);
+  const [funnel, setFunnel] = useState<FunnelStage[] | null>(null);
+  const [runs, setRuns] = useState<Run[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    supabase()
-      .from("applications")
-      .select("id,fit_score,status,status_detail,created_at,validation_warnings,jobs(title,company,source,location_text,location_eligibility)")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) setError(error.message);
-        else setApps(data as unknown as Application[]);
-      });
+  const load = useCallback(async () => {
+    try {
+      const [a, f, r] = await Promise.all([fetchApplications(), fetchFunnel(), fetchRuns()]);
+      setApps(a); setFunnel(f); setRuns(r);
+    } catch (e: any) { setError(e.message); }
   }, []);
+  useEffect(() => { load(); }, [load]);
 
-  if (error) return <main className="pad"><p className="error">{error}</p></main>;
-  if (!apps) return <main className="pad"><p className="muted">Loading…</p></main>;
+  const onStatus = async (id: string, s: Status) => {
+    setBusy(true);
+    try { await setStatus(id, s); await load(); } catch (e: any) { alert(e.message); }
+    setBusy(false);
+  };
+
+  if (error) return <div className="page"><p className="error">{error}</p></div>;
+  if (!apps || !funnel) return <div className="page"><p className="muted">Loading…</p></div>;
+
+  const by = (s: Status) => apps.filter((a) => a.status === s);
+  const toReview = by("pending_review");
+  const manual = by("needs_manual_action");
+  const applied = apps.filter((a) => a.status === "submitted" || a.status === "applied_manually");
+  const attention = [...manual, ...toReview];
+  const avg = apps.length ? Math.round(apps.reduce((n, a) => n + a.fit_score, 0) / apps.length) : null;
+  const last = runs[0];
 
   return (
-    <main className="pad">
-      {apps.length === 0 && (
-        <p className="muted">No applications yet. The pipeline runs every 4 hours and pings Telegram when there are new ones.</p>
-      )}
-      {STATUS_ORDER.map((status) => {
-        const group = apps.filter((a) => a.status === status);
-        if (group.length === 0) return null;
-        const isOpen = open[status] ?? !COLLAPSED_BY_DEFAULT.includes(status);
-        return (
-          <section key={status} className="group">
-            <h2 onClick={() => setOpen({ ...open, [status]: !isOpen })}>
-              <span className={`badge ${status}`}>{STATUS_LABEL[status]}</span>
-              <span className="muted">{group.length}</span>
-              <span className="muted chevron">{isOpen ? "▾" : "▸"}</span>
-            </h2>
-            {isOpen && (
-              <ul className="cards">
-                {group.map((a) => (
-                  <li key={a.id}>
-                    <Link href={`/applications/${a.id}`} className="card">
-                      <span className="score">{a.fit_score}</span>
-                      <span className="grow">
-                        <b>{a.jobs.title}</b>
-                        <span className="muted"> · {a.jobs.company} · {a.jobs.location_text || "Remote"}</span>
-                        {a.status_detail && <span className="detail">{a.status_detail}</span>}
-                      </span>
-                      {a.validation_warnings.length > 0 && (
-                        <span className="warn" title="Fabrication-guard warnings">⚠ {a.validation_warnings.length}</span>
-                      )}
-                      <span className="muted small">{new Date(a.created_at).toLocaleDateString()}</span>
-                    </Link>
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <h1>Overview</h1>
+          <p className="muted">
+            {last ? <>Last pipeline run {timeAgo(last.started_at)}
+              {last.error ? <span className="error"> · failed</span> : last.finished_at ? " · completed" : " · running"}</>
+              : "The pipeline hasn't run yet."}
+            {" · "}runs every 4 hours
+          </p>
+        </div>
+      </header>
+
+      <div className="tiles">
+        <StatTile label="To review" value={toReview.length} accent={toReview.length > 0}
+                  sub={toReview.length ? "Tailored and waiting for you" : "All caught up"} />
+        <StatTile label="Needs manual action" value={manual.length}
+                  sub="Auto-submit was blocked" />
+        <StatTile label="Applied" value={applied.length}
+                  sub={`${by("submitted").length} auto · ${by("applied_manually").length} manual`} />
+        <StatTile label="Average fit" value={avg ?? "—"} sub={`across ${apps.length} drafted`} />
+      </div>
+
+      <div className="grid-2">
+        <Card title="Needs your attention"
+              action={<Link href="/applications" className="btn-link small">All applications →</Link>}>
+          {attention.length === 0 ? (
+            <Empty>Nothing to review right now. You'll get a Telegram message when new applications are ready.</Empty>
+          ) : (
+            <div className="rows">{attention.slice(0, 8).map((a) =>
+              <AppRow key={a.id} app={a} onStatus={onStatus} busy={busy} />)}</div>
+          )}
+        </Card>
+
+        <div className="stack">
+          <Card title="Pipeline funnel" action={<span className="muted small">all time</span>}>
+            <Funnel stages={funnel} />
+          </Card>
+          <Card title="Recent runs" action={<Link href="/runs" className="btn-link small">History →</Link>}>
+            {runs.length === 0 ? <Empty>No runs yet.</Empty> : (
+              <ul className="runs-mini">
+                {runs.slice(0, 4).map((r) => (
+                  <li key={r.id}>
+                    <span className={r.error ? "dot dot-bad" : r.finished_at ? "dot dot-ok" : "dot dot-run"} aria-hidden />
+                    <span>{timeAgo(r.started_at)}</span>
+                    <span className="muted small">
+                      {r.error ? "failed" : r.finished_at
+                        ? `${r.stats?.new ?? 0} new · ${r.stats?.applications_created ?? 0} drafted`
+                        : "running…"}
+                    </span>
                   </li>
                 ))}
               </ul>
             )}
-          </section>
-        );
-      })}
-    </main>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }
