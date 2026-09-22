@@ -13,11 +13,11 @@ from collections import Counter
 
 from . import db, documents, llm, notify
 from .config import ROOT, secrets, settings
-from .filters import apply_prefilters, recency
+from .filters import apply_prefilters, location_rule, recency
 from .models import Job
 from .profile_parser import Profile, parse_profile
 from .screening import draft as draft_screening
-from .scoring import score
+from .scoring import FitResult, score
 from .sources import fetch_all
 from .tailoring import tailor
 
@@ -36,6 +36,16 @@ def dedupe_batch(jobs: list[Job]) -> list[Job]:
 
 def score_job(job: Job, profile: Profile, cfg: dict):
     """Scores in place and sets discard_reason when the job shouldn't proceed."""
+    # Re-check location here too: a job can reach this point without the ingest-time filters
+    # (backlog from an older run, or a discard_reason cleared by hand).
+    rule = location_rule(job)
+    if rule != "unknown":
+        job.location_eligibility = rule
+    if job.location_eligibility == "restricted":
+        job.discard_reason = "location"
+        job.fit_rationale = "Skipped before scoring: location excludes Nigeria"
+        job.fit_score = 0
+        return FitResult(0, job.fit_rationale, "restricted", "unknown", "other")
     fit = score(job, profile)
     job.fit_score, job.fit_rationale = fit.fit_score, fit.rationale
     # Keyword rules are authoritative when they found something; the LLM fills in 'unknown'.
@@ -166,6 +176,9 @@ def run() -> dict:
         budget = max(0, min(tc["max_tailors_per_run"], tc["max_tailors_per_day"] - db.tailors_today()))
         created = failed = 0
         for j in db.jobs_to_tailor(sc["threshold"], budget):
+            if location_rule(j) == "restricted":  # last check before spending a tailoring call
+                db.discard(j.id, "location")
+                continue
             try:
                 fit = fits.get(j.id) or _fit_from_row(j)
                 row, files = build_application(j, profile, cfg, fit)
