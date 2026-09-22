@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { BUCKET, supabase } from "@/lib/supabase";
-import { setStatus, timeAgo } from "@/lib/data";
+import { requestApply, setStatus, timeAgo } from "@/lib/data";
 import { Score, StatusBadge } from "@/components/ui";
 import Screening from "@/components/Screening";
 import type { AppEvent, Application, Status } from "@/lib/types";
@@ -39,6 +39,17 @@ export default function DetailPage() {
     setEvents((e.data ?? []) as AppEvent[]);
   }, [id]);
   useEffect(() => { load(); }, [load]);
+
+  const apply = async () => {
+    const blanks = (app?.screening_answers ?? []).filter((a) => !a.answer.trim()).length;
+    const warn = blanks > 0
+      ? `\n\n${blanks} screening answer(s) are blank — a form asking those will be handed back to you.`
+      : "";
+    if (!confirm("Submit this application to " + app?.jobs.company + "?" + warn)) return;
+    setBusy(true);
+    try { await requestApply(id); await load(); } catch (e: any) { alert(e.message); }
+    setBusy(false);
+  };
 
   const change = async (s: Status) => {
     setBusy(true);
@@ -106,10 +117,9 @@ export default function DetailPage() {
             <div className="action-stack">
               <a className="btn" href={job.url} target="_blank" rel="noopener noreferrer">Open job posting ↗</a>
               {actionable && (
-                <button className="btn btn-primary" disabled title="Automated submission (Workflow 2) is not built yet">
-                  Apply (coming soon)
-                </button>
+                <button className="btn btn-primary" disabled={busy} onClick={apply}>Apply</button>
               )}
+              {s === "queued" && <p className="muted small">Submission is running on GitHub Actions…</p>}
               {s !== "applied_manually" && s !== "submitted" && (
                 <button className="btn" disabled={busy} onClick={() => change("applied_manually")}>Mark as applied manually</button>
               )}

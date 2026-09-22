@@ -60,6 +60,17 @@ export async function setStatus(id: string, status: Status, detail: string | nul
   await sb.from("application_events").insert({ application_id: id, event: status, detail: { via: "dashboard" } });
 }
 
+/** Ask the Edge Function to queue this application and start Workflow 2. */
+export async function requestApply(id: string): Promise<void> {
+  const { data, error } = await supabase().functions.invoke("trigger-apply", { body: { application_id: id } });
+  if (error) {
+    // Edge Function errors carry the useful message in the response body.
+    const body = await (error as any).context?.json?.().catch(() => null);
+    throw new Error(body?.error ?? error.message);
+  }
+  if ((data as any)?.error) throw new Error((data as any).error);
+}
+
 export function timeAgo(iso: string | null): string {
   if (!iso) return "—";
   const s = (Date.now() - new Date(iso).getTime()) / 1000;

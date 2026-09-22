@@ -143,3 +143,23 @@ def finish_run(run_id: int, stats: dict, error: str | None = None) -> None:
     sb().table("pipeline_runs").update({
         "finished_at": datetime.now(timezone.utc).isoformat(), "stats": stats, "error": error,
     }).eq("id", run_id).execute()
+
+
+# --------------------------------------------------------------------------- workflow 2
+def get_application(application_id: str) -> dict | None:
+    rows = (sb().table("applications").select("*, jobs(*)")
+            .eq("id", application_id).limit(1).execute().data)
+    return rows[0] if rows else None
+
+
+def set_application_status(application_id: str, status: str, detail: str | None = None) -> None:
+    sb().table("applications").update({"status": status, "status_detail": detail}).eq("id", application_id).execute()
+
+
+def add_event(application_id: str, event: str, detail: dict | None = None) -> None:
+    sb().table("application_events").insert(
+        {"application_id": application_id, "event": event, "detail": detail or {}}).execute()
+
+
+def download(path: str) -> bytes:
+    return sb().storage.from_(settings()["storage"]["bucket"]).download(path)

@@ -1,0 +1,52 @@
+name: Workflow 2 - submit application
+
+on:
+  repository_dispatch:
+    types: [apply]
+  workflow_dispatch:
+    inputs:
+      application_id:
+        description: "Application UUID to submit"
+        required: true
+
+concurrency:
+  group: apply-${{ github.event.client_payload.application_id || inputs.application_id }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Install Playwright browser
+        run: python -m playwright install --with-deps chromium
+
+      - name: Submit application
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+        run: >
+          python -m jobbit.workflow2
+          --application ${{ github.event.client_payload.application_id || inputs.application_id }}
+
+      - name: Upload run artifacts (screenshots, page dumps)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apply-${{ github.event.client_payload.application_id || inputs.application_id }}
+          path: apply_artifacts/
+          if-no-files-found: ignore
+          retention-days: 14

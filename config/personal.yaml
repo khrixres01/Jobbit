@@ -5,14 +5,14 @@
 
 facts:
   work_authorization: "I am a Nigerian citizen based in Lagos, authorized to work in Nigeria. I do not hold work authorization for the US, UK, or EU and would need sponsorship for roles requiring it."
-  requires_sponsorship: "yes"          # yes | no — for "will you now or in the future require sponsorship?"
+  requires_sponsorship: "yes"        
   location: "Lagos, Nigeria"
   timezone: "WAT (UTC+1)"
   timezone_overlap: "I work comfortably with European hours and can overlap with US Eastern mornings."
   willing_to_relocate: "Open to relocation for the right role, and equally happy to stay fully remote."
   notice_period: "1 month"
   earliest_start: "One month from offer."
-  salary_expectation: ""               # e.g. "USD 45,000–60,000/year, negotiable". Empty = ask me.
+  salary_expectation: "USD 45,000 - 60,000/year, negotiable"
   years_experience: "auto"             # 'auto' computes from career_start in settings.yaml
   portfolio_url: "https://github.com/khrixres01"
   referral_source: "Company careers page"
