@@ -28,7 +28,8 @@ _INCLUDES_NG = re.compile(r"\b(nigeria|africa|emea|lagos|west africa|gmt\+1|wat)
 
 
 def _words(title: str, terms: list[str]) -> bool:
-    return any(re.search(rf"\b{re.escape(t)}\b", title, re.I) for t in terms)
+    # optional trailing "s" so "Data Engineers" matches the term "data engineer"
+    return any(re.search(rf"\b{re.escape(t)}s?\b", title, re.I) for t in terms)
 
 
 def recency(job: Job, max_age_days: int, keep_undated: bool) -> str | None:

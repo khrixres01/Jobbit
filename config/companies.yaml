@@ -6,38 +6,61 @@
 # Invalid tokens are logged and skipped, so pruning this list is safe. Verify and edit freely.
 
 greenhouse:
-  - gitlab
-  - databricks
-  - elastic
-  - grafanalabs
-  - fivetran
-  - cockroachlabs
-  - mongodb
-  - twilio
-  - datadog
+  - binance
   - canonical
-  - wikimedia
+  - circleci
+  - cloudflare
+  - cockroachlabs
+  - databricks
+  - datadog
+  - doximity
+  - dremio
+  - elastic
+  - fivetran
+  - gitlab
+  - grafanalabs
+  - imply
+  - jumia
+  - mattermost
+  - mongodb
+  - moniepoint
   - remote
+  - sigmacomputing
+  - starburst
+  - stripe
+  - turing
+  - twilio
+  - wikimedia
 
 lever:
-  - kraken
+  - aircall
   - binance
-  - neighbor
   - jobgether
+  - kraken
+  - neighbor
+  - payjoy
+  - shieldai
   - sonatype
 
 ashby:
-  - supabase
+  - astronomer
+  - baseten
+  - cursor
+  - deel
+  - hightouch
+  - linear
+  - modal
+  - motherduck
+  - openai
   - posthog
   - prefect
-  - astronomer
-  - hightouch
-  - motherduck
-  - deel
-  - zapier
-  - linear
-  - vercel
+  - ramp
+  - replit
   - sentry
+  - supabase
+  - vanta
+  - vercel
+  - zapier
 
 remotive:
   categories: [data, software-dev, devops]
