@@ -6,6 +6,7 @@ import Link from "next/link";
 import { BUCKET, supabase } from "@/lib/supabase";
 import { setStatus, timeAgo } from "@/lib/data";
 import { Score, StatusBadge } from "@/components/ui";
+import Screening from "@/components/Screening";
 import type { AppEvent, Application, Status } from "@/lib/types";
 
 type Tab = "resume" | "cover" | "jd";
@@ -78,6 +79,8 @@ export default function DetailPage() {
               <ul>{app.validation_warnings.map((w) => <li key={w}>{w}</li>)}</ul>
             </div>
           )}
+
+          <Screening id={id} answers={app.screening_answers ?? []} onSaved={load} />
 
           <section className="card">
             <div className="tabs">

@@ -36,6 +36,8 @@ export type Job = {
   posted_date: string | null;
 };
 
+export type ScreeningAnswer = { key: string; question: string; answer: string; source: string; edited: boolean };
+
 export type Application = {
   id: string;
   job_id: string;
@@ -49,6 +51,7 @@ export type Application = {
   cover_letter_file_url: string | null;
   cover_letter_docx_url: string | null;
   validation_warnings: string[];
+  screening_answers: ScreeningAnswer[];
   status: Status;
   status_detail: string | null;
   created_at: string;

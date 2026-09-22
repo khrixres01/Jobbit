@@ -1,0 +1,80 @@
+# Answers to standard application questions that aren't in master_profile.md.
+# Edit these — they are used verbatim on forms, so say exactly what you'd say yourself.
+# Anything left empty is treated as "unknown": the applier will not guess, and will hand the
+# application back to you as needs_manual_action rather than inventing an answer.
+
+facts:
+  work_authorization: "I am a Nigerian citizen based in Lagos, authorized to work in Nigeria. I do not hold work authorization for the US, UK, or EU and would need sponsorship for roles requiring it."
+  requires_sponsorship: "yes"          # yes | no — for "will you now or in the future require sponsorship?"
+  location: "Lagos, Nigeria"
+  timezone: "WAT (UTC+1)"
+  timezone_overlap: "I work comfortably with European hours and can overlap with US Eastern mornings."
+  willing_to_relocate: "Open to relocation for the right role, and equally happy to stay fully remote."
+  notice_period: "1 month"
+  earliest_start: "One month from offer."
+  salary_expectation: ""               # e.g. "USD 45,000–60,000/year, negotiable". Empty = ask me.
+  years_experience: "auto"             # 'auto' computes from career_start in settings.yaml
+  portfolio_url: "https://github.com/khrixres01"
+  referral_source: "Company careers page"
+
+# Questions the drafting step prepares an answer for. The applier matches real form fields to these.
+# Free-text answers are generated per job from the master profile + that job's description.
+bank:
+  - key: why_company
+    question: "Why do you want to work here / what interests you about this company?"
+    kind: generated
+    max_words: 120
+  - key: why_you
+    question: "Why are you a good fit for this role?"
+    kind: generated
+    max_words: 120
+  - key: relevant_experience
+    question: "Describe your most relevant experience for this role."
+    kind: generated
+    max_words: 150
+  - key: years_experience
+    question: "How many years of relevant experience do you have?"
+    kind: fact
+    fact: years_experience
+  - key: work_authorization
+    question: "Are you authorized to work in the hiring country / do you need sponsorship?"
+    kind: fact
+    fact: work_authorization
+  - key: location
+    question: "Where are you located?"
+    kind: fact
+    fact: location
+  - key: timezone
+    question: "What timezone are you in / can you overlap with our hours?"
+    kind: fact
+    fact: timezone_overlap
+  - key: notice_period
+    question: "What is your notice period / earliest start date?"
+    kind: fact
+    fact: notice_period
+  - key: salary_expectation
+    question: "What are your salary expectations?"
+    kind: fact
+    fact: salary_expectation
+  - key: relocation
+    question: "Are you willing to relocate?"
+    kind: fact
+    fact: willing_to_relocate
+  - key: portfolio
+    question: "Portfolio / GitHub / personal site"
+    kind: fact
+    fact: portfolio_url
+
+# Never answered automatically: these go to you, or are left blank on the form.
+# Demographic/diversity questions (race, gender, disability, veteran status) are always left blank —
+# they are voluntary, and the applier must not answer them on your behalf.
+never_auto:
+  - demographic
+  - eeoc
+  - veteran
+  - disability
+  - gender
+  - race
+  - ethnicity
+  - criminal
+  - background_check

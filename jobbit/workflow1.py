@@ -16,6 +16,7 @@ from .config import ROOT, secrets, settings
 from .filters import apply_prefilters, recency
 from .models import Job
 from .profile_parser import Profile, parse_profile
+from .screening import draft as draft_screening
 from .scoring import score
 from .sources import fetch_all
 from .tailoring import tailor
@@ -50,6 +51,7 @@ def score_job(job: Job, profile: Profile, cfg: dict):
 def build_application(job: Job, profile: Profile, cfg: dict, fit) -> tuple[dict, dict]:
     docs = tailor(job, fit, profile, cfg)
     files = documents.render_all(docs, profile, job)
+    screening = draft_screening(job, profile)
     app_id = str(uuid.uuid4())
     row = {
         "id": app_id,
@@ -60,6 +62,7 @@ def build_application(job: Job, profile: Profile, cfg: dict, fit) -> tuple[dict,
         "tailored_resume_text": files["resume_text"],
         "tailored_resume_json": docs.to_json(),
         "cover_letter_text": files["cover_text"],
+        "screening_answers": screening,
         "validation_warnings": docs.warnings,
         "status": "pending_review",
     }
@@ -108,6 +111,9 @@ def dry_run(limit: int) -> None:
         (d / "cover_letter.docx").write_bytes(files["cover_docx"])
         (d / "cover_letter.txt").write_text(files["cover_text"], encoding="utf-8")
         (d / "warnings.txt").write_text("\n".join(row["validation_warnings"]) or "none", encoding="utf-8")
+        (d / "screening.txt").write_text(
+            "\n\n".join(f"Q: {a['question']}\nA: {a['answer'] or '(left for you)'}  [{a['source']}]"
+                        for a in row["screening_answers"]), encoding="utf-8")
         log.info("     wrote %s", d.relative_to(ROOT))
 
 
