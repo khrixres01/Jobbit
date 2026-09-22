@@ -1,7 +1,7 @@
 # Jobbit pipeline settings. Secrets live in env vars / GitHub Secrets, never here.
 
 filters:
-  max_age_days: 7            # discard postings older than this
+  max_age_days: 21           # discard postings older than this (local jobs stay open longer)
   keep_undated: false        # postings with no date can't be verified as recent
   allow_hybrid_in_nigeria: true   # keep hybrid roles located in Nigeria; on-site elsewhere is dropped
   # Cheap title pre-filter before any Claude call. Case-insensitive substring match on title.
