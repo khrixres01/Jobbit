@@ -27,6 +27,9 @@ _OPEN = re.compile(r"\b(worldwide|anywhere|global|globally|any location|all loca
 _INCLUDES_NG = re.compile(r"\b(nigeria|africa|emea|lagos|west africa|gmt\+1|wat)\b", re.I)
 
 
+_HYBRID = re.compile(r"\bhybrid\b", re.I)
+
+
 def _words(title: str, terms: list[str]) -> bool:
     # optional trailing "s" so "Data Engineers" matches the term "data engineer"
     return any(re.search(rf"\b{re.escape(t)}s?\b", title, re.I) for t in terms)
@@ -39,8 +42,14 @@ def recency(job: Job, max_age_days: int, keep_undated: bool) -> str | None:
     return "stale" if posted < datetime.now(timezone.utc) - timedelta(days=max_age_days) else None
 
 
-def remote(job: Job) -> str | None:
-    return None if job.remote else "not_remote"
+def remote(job: Job, allow_hybrid_in_nigeria: bool = True) -> str | None:
+    """Keep fully-remote jobs, plus hybrid roles inside Nigeria (commutable). Drop on-site."""
+    if job.remote:
+        return None
+    where = f'{job.location_text} {job.jd_text[:2000]}'
+    if allow_hybrid_in_nigeria and _HYBRID.search(f'{job.title} {where}') and _INCLUDES_NG.search(where):
+        return None
+    return "not_remote"
 
 
 def has_url(job: Job) -> str | None:
@@ -83,7 +92,7 @@ def apply_prefilters(job: Job, cfg: dict) -> str | None:
     f = cfg["filters"]
     for reason in (
         has_url(job),
-        remote(job),
+        remote(job, f.get("allow_hybrid_in_nigeria", True)),
         recency(job, f["max_age_days"], f["keep_undated"]),
         title_keywords(job, f["title_include"], f["title_exclude"]),
     ):
