@@ -8,6 +8,10 @@ on:
       application_id:
         description: "Application UUID to submit"
         required: true
+      dry_run:
+        description: "Fill the form and screenshot it, but do not submit"
+        type: boolean
+        default: false
 
 concurrency:
   group: apply-${{ github.event.client_payload.application_id || inputs.application_id }}
@@ -41,6 +45,7 @@ jobs:
         run: >
           python -m jobbit.workflow2
           --application ${{ github.event.client_payload.application_id || inputs.application_id }}
+          ${{ inputs.dry_run && '--no-submit' || '' }}
 
       - name: Upload run artifacts (screenshots, page dumps)
         if: always()

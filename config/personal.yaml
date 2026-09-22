@@ -7,6 +7,7 @@ facts:
   work_authorization: "I am a Nigerian citizen based in Lagos, authorized to work in Nigeria. I do not hold work authorization for the US, UK, or EU and would need sponsorship for roles requiring it."
   requires_sponsorship: "yes"        
   location: "Lagos, Nigeria"
+  country: "Nigeria"
   timezone: "WAT (UTC+1)"
   timezone_overlap: "I work comfortably with European hours and can overlap with US Eastern mornings."
   willing_to_relocate: "Open to relocation for the right role, and equally happy to stay fully remote."
@@ -44,6 +45,10 @@ bank:
     question: "Where are you located?"
     kind: fact
     fact: location
+  - key: country
+    question: "What is your country of residence?"
+    kind: fact
+    fact: country
   - key: timezone
     question: "What timezone are you in / can you overlap with our hours?"
     kind: fact

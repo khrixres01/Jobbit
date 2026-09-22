@@ -42,7 +42,7 @@ def hand_back(app: dict, reason: str, detail: dict | None = None) -> None:
     log.warning("handed back: %s", reason)
 
 
-def run(application_id: str, force: bool = False) -> str:
+def run(application_id: str, force: bool = False, no_submit: bool = False, headless: bool = True) -> str:
     app = db.get_application(application_id)
     if not app:
         raise SystemExit(f"application {application_id} not found")
@@ -65,7 +65,7 @@ def run(application_id: str, force: bool = False) -> str:
             files[key] = db.download(path)
 
         ARTIFACTS.mkdir(exist_ok=True)
-        result: Submitted = submit(app, files, ARTIFACTS)
+        result: Submitted = submit(app, files, ARTIFACTS, no_submit=no_submit, headless=headless)
     except ManualAction as e:
         hand_back(app, e.reason, {**e.detail, "unanswered": missing})
         return "needs_manual_action"
@@ -85,10 +85,12 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--application", required=True)
     ap.add_argument("--force", action="store_true", help="run even if the application isn't queued (testing)")
+    ap.add_argument("--no-submit", action="store_true", help="fill the form and screenshot it, but never click submit")
+    ap.add_argument("--show", action="store_true", help="run with a visible browser window")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
-    print(run(args.application, args.force))
+    print(run(args.application, args.force, args.no_submit, headless=not args.show))
 
 
 if __name__ == "__main__":
