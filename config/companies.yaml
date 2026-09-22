@@ -7,10 +7,13 @@
 
 greenhouse:
   - binance
+  - branch
   - canonical
+  - carbon
   - circleci
   - cloudflare
   - cockroachlabs
+  - consensys
   - databricks
   - datadog
   - doximity
@@ -19,13 +22,23 @@ greenhouse:
   - fivetran
   - gitlab
   - grafanalabs
+  - grey
   - imply
+  - invisible
+  - invisibletech
   - jumia
+  - luno
   - mattermost
   - mongodb
   - moniepoint
+  - mozilla
+  - okx
+  - prospa
   - remote
+  - remotecom
+  - scaleai
   - sigmacomputing
+  - sportygroup
   - starburst
   - stripe
   - turing
@@ -41,10 +54,14 @@ lever:
   - payjoy
   - shieldai
   - sonatype
+  - toptal
 
 ashby:
+  - andela
   - astronomer
   - baseten
+  - buffer
+  - confluent
   - cursor
   - deel
   - hightouch
@@ -52,15 +69,25 @@ ashby:
   - modal
   - motherduck
   - openai
+  - parity
+  - percona
   - posthog
   - prefect
   - ramp
   - replit
+  - sabi
   - sentry
+  - snowflake
   - supabase
   - vanta
   - vercel
   - zapier
+
+workable:
+  # Nigerian employers that post on Workable (descriptions + a remote flag come through the API)
+  - fairmoney
+  - kuda
+  - renmoney
 
 remotive:
   categories: [data, software-dev, devops]

@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 
 from ..config import companies
-from . import ashby, greenhouse, himalayas, lever, remoteok, remotive, weworkremotely
+from . import ashby, greenhouse, himalayas, lever, remoteok, remotive, weworkremotely, workable
 from .base import client
 
 log = logging.getLogger(__name__)
@@ -18,6 +18,7 @@ def fetch_all() -> tuple[list, dict]:
             ("greenhouse", lambda: greenhouse.fetch(http, cfg.get("greenhouse", []))),
             ("lever", lambda: lever.fetch(http, cfg.get("lever", []))),
             ("ashby", lambda: ashby.fetch(http, cfg.get("ashby", []))),
+            ("workable", lambda: workable.fetch(http, cfg.get("workable", []))),
             ("remotive", lambda: remotive.fetch(http, cfg.get("remotive", {}).get("categories", []))),
             ("remoteok", lambda: remoteok.fetch(http)),
             ("weworkremotely", lambda: weworkremotely.fetch(http, cfg.get("weworkremotely", {}).get("feeds", []))),
