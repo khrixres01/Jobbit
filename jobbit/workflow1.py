@@ -16,6 +16,7 @@ from .config import ROOT, secrets, settings
 from .filters import apply_prefilters, location_rule, recency
 from .models import Job
 from .profile_parser import Profile, parse_profile
+from .recover import sweep_stuck
 from .screening import draft as draft_screening
 from .scoring import FitResult, score
 from .sources import fetch_all
@@ -136,6 +137,7 @@ def run() -> dict:
     run_id = db.start_run("scrape")
     try:
         stats["profile_updated"] = db.sync_profile(profile)
+        stats["recovered_stuck"] = sweep_stuck()
 
         # 1. fetch + dedupe
         jobs, stats["fetched"] = fetch_all()
