@@ -58,7 +58,8 @@ Rules:
    claim it — point to the closest real experience instead.
 5. These are drafts the candidate will edit, so never write a placeholder like [Company] or [X years];
    write the real thing or leave that detail out.
-6. Never inflate scope or ownership. Use "led" only where the profile says so (e.g. the Data and Analytics
+6. State years of experience only as the figure given in the message.
+7. Never inflate scope or ownership. Use "led" only where the profile says so (e.g. the Data and Analytics
    Maturity Program); otherwise "built", "designed", "contributed to". Do not add responsibilities the
    profile doesn't state (SLAs, managing people, budgets, on-call) even if the JD mentions them.
 
@@ -81,7 +82,10 @@ def draft(job: Job, profile: Profile) -> list[dict]:
     answers: dict[str, str] = {}
 
     if generated and not llm.is_stubbed():
-        prompt_lines = [f"Title: {job.title}", f"Company: {job.company}", "", "Questions:"]
+        years = years_of_experience(settings()["tailoring"]["career_start"])
+        prompt_lines = [f"Title: {job.title}", f"Company: {job.company}",
+                        f"Years of experience to state (use this figure, never a different one): {years}+",
+                        "", "Questions:"]
         prompt_lines += [f"- {q['key']}: {q['question']} (max {q.get('max_words', 120)} words)" for q in generated]
         prompt_lines += ["", f"Job description:\n{job.jd_text[:12000]}"]
         try:
