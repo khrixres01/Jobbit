@@ -17,6 +17,9 @@ facts:
   years_experience: "auto"             # 'auto' computes from career_start in settings.yaml
   portfolio_url: "https://github.com/khrixres01"
   referral_source: "Company careers page"
+  english_proficiency: "Yes - English is my working language, spoken and written fluently."
+  work_arrangement: "Yes - happy with either a B2B contract or a B2C/employee arrangement."
+  gdpr_consent: "Yes"
 
 # Questions the drafting step prepares an answer for. The applier matches real form fields to these.
 # Free-text answers are generated per job from the master profile + that job's description.
@@ -69,6 +72,22 @@ bank:
     question: "Portfolio / GitHub / personal site"
     kind: fact
     fact: portfolio_url
+  - key: english_proficiency
+    question: "Do you have English proficiency / what is your level of English?"
+    kind: fact
+    fact: english_proficiency
+  - key: referral_source
+    question: "Where did you hear about us / how did you find this role?"
+    kind: fact
+    fact: referral_source
+  - key: work_arrangement
+    question: "Are you happy with a B2B or B2C / contract or employee arrangement?"
+    kind: fact
+    fact: work_arrangement
+  - key: gdpr_consent
+    question: "Do you acknowledge the privacy policy / GDPR processing of your data?"
+    kind: fact
+    fact: gdpr_consent
 
 # Never answered automatically: these go to you, or are left blank on the form.
 # Demographic/diversity questions (race, gender, disability, veteran status) are always left blank —

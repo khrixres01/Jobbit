@@ -30,9 +30,10 @@ class Submitted:
 
 
 ATS_PATTERNS = {
-    "greenhouse": r"(boards|job-boards)\.greenhouse\.io|greenhouse\.io/embed",
-    "lever": r"jobs\.lever\.co",
-    "ashby": r"jobs\.ashbyhq\.com",
+    # regional domains too: job-boards.eu.greenhouse.io, jobs.eu.lever.co, jobs.eu.ashbyhq.com
+    "greenhouse": r"greenhouse\.io",
+    "lever": r"lever\.co",
+    "ashby": r"ashbyhq\.com",
     "workable": r"apply\.workable\.com",
     "smartrecruiters": r"jobs\.smartrecruiters\.com",
     "workday": r"myworkdayjobs\.com",

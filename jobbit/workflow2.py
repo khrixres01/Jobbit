@@ -13,6 +13,8 @@ import logging
 from pathlib import Path
 
 from . import db, notify
+from .profile_parser import parse_profile
+from .screening import merge_facts
 from .applier import ManualAction, Submitted, detect_ats, submit
 from .config import ROOT, secrets
 
@@ -50,12 +52,13 @@ def run(application_id: str, force: bool = False, no_submit: bool = False, headl
     log.info("applying: %s @ %s via %s", job["title"], job["company"], detect_ats(job["url"]))
 
     # Only run for something you queued. This is the last line of defence behind the Apply click.
-    if app["status"] != "queued" and not force:
+    if app["status"] != "queued" and not (force or no_submit):
         raise SystemExit(f"application is '{app['status']}', not 'queued' — nothing was submitted")
 
     missing: list[str] = []
     try:
-        missing = [a["question"] for a in app.get("screening_answers") or [] if not (a.get("answer") or "").strip()]
+        app["screening_answers"] = merge_facts(app.get("screening_answers") or [], parse_profile())
+        missing = [a["question"] for a in app["screening_answers"] if not (a.get("answer") or "").strip()]
         files = {}
         for key, column in DOC_FIELDS.items():
             path = app.get(column)

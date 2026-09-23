@@ -39,7 +39,7 @@ IDENTITY = [
 
 NEVER = re.compile(
     r"\b(gender|race|ethnic|hispanic|latino|veteran|disability|disabled|sexual orientation|"
-    r"pronoun|age range|date of birth|criminal|conviction|felony|background check|"
+    r"pronouns?|age range|date of birth|criminal|conviction|felony|background check|accommodations?|"
     r"self-?identif|eeo|equal (employment )?opportunity|voluntary (self-)?disclosure)\b", re.I)
 
 CONSENT = re.compile(r"\b(privacy (policy|notice)|terms|consent|gdpr|data processing|acknowledge|i agree|i confirm)\b", re.I)
@@ -95,6 +95,7 @@ def label_for(page: Page, el: Locator) -> str:
 def read_form(page: Page, root: str = "form, [class*='application'], body") -> list[Field]:
     fields: list[Field] = []
     seen_radio_groups: set[str] = set()
+    seen_comboboxes: set[str] = set()
     container = page.locator(root).first
     controls = container.locator("input:not([type=hidden]), textarea, select")
     for i in range(min(controls.count(), 120)):
@@ -107,13 +108,25 @@ def read_form(page: Page, root: str = "form, [class*='application'], body") -> l
             name = el.get_attribute("name") or el.get_attribute("id") or ""
             if input_type in ("submit", "button", "reset", "image"):
                 continue
+            combobox = bool(el.evaluate(
+                "e => !!(e.closest('[class*=select__control],[class*=Select__control]') "
+                "|| e.getAttribute('role') === 'combobox' || e.closest('[role=combobox]'))"))
             kind = ("file" if input_type == "file" else "checkbox" if input_type == "checkbox"
-                    else "radio" if input_type == "radio" else "select" if tag == "select"
+                    else "radio" if input_type == "radio" else "combobox" if combobox
+                    else "select" if tag == "select"
                     else "textarea" if tag == "textarea" else "text")
             if kind == "radio":
                 if name in seen_radio_groups:
                     continue
                 seen_radio_groups.add(name)
+            # A dropdown widget exposes several inputs (visible control + inner search box), all
+            # carrying the same question text. Keep the first; writing to the others lands text in
+            # the wrong place.
+            base = re.sub(r"\s*select\.\.\.\s*$", "", label_for(page, el), flags=re.I).strip().lower()
+            if base and kind not in ("checkbox", "radio", "file"):
+                if base in seen_comboboxes:
+                    continue
+                seen_comboboxes.add(base)
             options = []
             if kind == "select":
                 options = [o.strip() for o in el.locator("option").all_inner_texts() if o.strip()]
@@ -121,13 +134,45 @@ def read_form(page: Page, root: str = "form, [class*='application'], body") -> l
                 options = [t.strip() for t in container.locator(f"input[name='{name}']").evaluate_all(
                     "els => els.map(e => (e.closest('label')?.innerText) || e.value || '')") if t.strip()]
             required = bool(el.get_attribute("required") or el.get_attribute("aria-required") == "true")
-            label = label_for(page, el)
+            label = re.sub(r"\s*select\.\.\.\s*$", "", label_for(page, el), flags=re.I).strip()
             if not required and label:
                 required = bool(re.search(r"\*\s*$|\(required\)", label, re.I))
             fields.append(Field(el, kind, label, required, options, name))
         except Exception:
             continue
     return fields
+
+
+def find_field(page: Page, label: str, kind: str | None = None):
+    """Re-read the form and return the field with this label (and kind, if given).
+
+    The page re-renders as it is filled, so element references captured earlier go stale or, worse,
+    point at a neighbouring control. Re-locating by label before every write keeps each value in the
+    field it belongs to.
+    """
+    want = label.strip().lower()
+    for f in read_form(page):
+        if f.label.strip().lower() == want and (kind is None or f.kind == kind):
+            return f
+    return None
+
+
+def find_combobox(page: Page, label: str):
+    return find_field(page, label, "combobox")
+
+
+def current_value(field) -> str:
+    """What the control shows now: input value, or the widget's visible text for a combobox."""
+    try:
+        if field.kind == "combobox":
+            text = field.locator.evaluate(
+                "e => (e.closest('[class*=select__control],[class*=Select__control]')?.innerText || '')")
+            return re.sub(r"\s+", " ", text or "").strip()
+        if field.kind in ("checkbox", "radio"):
+            return "checked" if field.locator.is_checked() else ""
+        return (field.locator.input_value() or "").strip()
+    except Exception:
+        return ""
 
 
 def classify(label: str) -> str | None:
@@ -185,3 +230,45 @@ def map_questions(questions: list[str], answers: list[dict]) -> dict[int, str]:
         return {}
     return {m["index"]: m["answer_key"] for m in out.get("mappings", [])
             if m.get("confidence") == "high" and m.get("answer_key") in keys}
+
+
+PICK_TOOL = {
+    "name": "pick_option",
+    "description": "Choose the dropdown option that matches the candidate's approved answer.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "option": {"type": "string", "description": "exact option text, or 'none'"},
+            "confidence": {"type": "string", "enum": ["high", "low"]},
+        },
+        "required": ["option", "confidence"],
+    },
+}
+
+PICK_SYSTEM = """You map a candidate's approved answer onto one option of a real job-application dropdown.
+Return the option text exactly as given. Return 'none' unless the option clearly expresses the same thing
+as the approved answer - a wrong pick puts false information on a real application.
+
+Numeric bands are safe to resolve: if the answer states a number or a "N+" figure and the options are
+ranges (e.g. "1-3 years", "3-5 years", "5+ years"), pick the band that contains that number, with high
+confidence. Never round up into a higher band than the answer supports.
+
+Never guess at demographic, eligibility, or salary questions when the answer does not clearly say."""
+
+
+def pick_option(question: str, answer: str, options: list[str]) -> str | None:
+    """Last-resort match, constrained to the options actually on screen."""
+    if not options or llm.is_stubbed():
+        return None
+    listing = "\n".join(f"- {o}" for o in options[:40])
+    prompt = f"Question: {question}\nApproved answer: {answer}\n\nOptions:\n{listing}"
+    try:
+        out = llm.call_tool(task="scoring", system=PICK_SYSTEM, cached_context="",
+                            prompt=prompt, tool=PICK_TOOL, max_tokens=2000)
+    except Exception:
+        log.exception("option pick failed")
+        return None
+    choice = (out.get("option") or "").strip()
+    if out.get("confidence") != "high" or choice.lower() in ("", "none"):
+        return None
+    return next((o for o in options if o.strip().lower() == choice.lower()), None)

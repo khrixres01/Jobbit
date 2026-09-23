@@ -18,6 +18,7 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like
 CAPTCHA_MARKERS = [
     "iframe[src*='recaptcha']", "iframe[src*='hcaptcha']", "iframe[src*='challenges.cloudflare.com']",
     "div.g-recaptcha", "div.h-captcha", "div.cf-turnstile", "#px-captcha",
+    # note: .grecaptcha-badge is deliberately absent — it is the silent/invisible variant
 ]
 LOGIN_MARKERS = re.compile(r"\b(sign in to (apply|continue)|log in to (apply|continue)|create an account to apply)\b", re.I)
 
@@ -53,17 +54,32 @@ def dump_html(page: Page, artifacts: Path, name: str) -> None:
         pass
 
 
-def guard(page: Page, artifacts: Path, stage: str) -> None:
-    """Stop before doing anything that could submit a form we don't fully understand.
+def _is_silent_badge(el) -> bool:
+    """The invisible-reCAPTCHA badge sits in a .grecaptcha-badge container and needs no human."""
+    try:
+        return bool(el.evaluate("e => !!e.closest('.grecaptcha-badge')"))
+    except Exception:
+        return False
 
-    CAPTCHAs are never solved or bypassed — hitting one hands the application back to you.
+
+def guard(page: Page, artifacts: Path, stage: str) -> None:
+    """Stop before anything that could submit a form we don't fully understand.
+
+    Only an *interactive* challenge blocks. Greenhouse and friends put Google's invisible
+    reCAPTCHA badge on every form; it scores silently, so treating it as a blocker would hand
+    back nearly every application. CAPTCHAs are never solved or bypassed.
     """
     for selector in CAPTCHA_MARKERS:
         try:
-            if page.locator(selector).first.is_visible(timeout=800):
-                shot(page, artifacts, f"captcha-{stage}")
-                raise ManualAction("CAPTCHA on the application form — finish this one by hand",
-                                   {"stage": stage, "selector": selector})
+            el = page.locator(selector).first
+            if not el.is_visible(timeout=800) or _is_silent_badge(el):
+                continue
+            box = el.bounding_box()
+            if not box or box["width"] < 120 or box["height"] < 40:
+                continue
+            shot(page, artifacts, f"captcha-{stage}")
+            raise ManualAction("CAPTCHA challenge on the application form — finish this one by hand",
+                               {"stage": stage, "selector": selector, "size": box})
         except ManualAction:
             raise
         except Exception:

@@ -111,3 +111,21 @@ def draft(job: Job, profile: Profile) -> list[dict]:
         out.append({"key": q["key"], "question": q["question"], "answer": answer,
                     "source": source, "edited": False})
     return out
+
+
+def merge_facts(answers: list[dict], profile: Profile) -> list[dict]:
+    """Add fact answers for bank entries added since this application was drafted.
+
+    Facts come verbatim from personal.yaml, so filling them in later is safe; AI answers are
+    never back-filled this way (they are job-specific and you approved the ones you have).
+    """
+    have = {a.get("key") for a in answers}
+    out = list(answers)
+    for q in personal().get("bank", []):
+        if q.get("kind") != "fact" or q["key"] in have:
+            continue
+        answer = fact_answer(q["fact"], profile)
+        if answer:
+            out.append({"key": q["key"], "question": q["question"], "answer": answer,
+                        "source": "profile", "edited": False})
+    return out
