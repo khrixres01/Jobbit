@@ -13,8 +13,8 @@ from playwright.sync_api import Page
 from ..profile_parser import Profile
 from . import ManualAction, Submitted
 from .browser import dump_html, guard, shot
-from .fields import (CONSENT, NEVER, Field, classify, current_value, find_combobox, find_field,
-                     map_questions, pick_option, profile_values, read_form)
+from .fields import (ACCESSIBILITY, CONSENT, NEVER, Field, classify, current_value, find_combobox,
+                     find_field, map_questions, pick_option, profile_values, read_form)
 
 log = logging.getLogger(__name__)
 
@@ -115,8 +115,15 @@ def fill(page: Page, profile: Profile, app: dict, files: dict[str, bytes], artif
     unknown: list[tuple[int, Field]] = []
     questions: list[str] = []
 
+    accessibility_answer = (answers.get("accommodations", {}).get("answer") or "").strip()
     for f in fields:
         if NEVER.search(f.label):
+            # one exception: an accessibility question, answered only from what you stated yourself
+            if ACCESSIBILITY.search(f.label) and accessibility_answer:
+                choice = _answer_choice(page, f, accessibility_answer)
+                if choice:
+                    report["filled"].append({"label": f.label, "value": choice, "source": "answer:accommodations"})
+                    continue
             report["skipped"].append({"label": f.label, "why": "demographic/EEOC — never auto-answered"})
             continue
         if f.kind == "file":
@@ -152,7 +159,7 @@ def fill(page: Page, profile: Profile, app: dict, files: dict[str, bytes], artif
 
             if f.kind == "select" and CONSENT.search(f.label) and f.required:
                 choice = _closest_option("yes", f.options) or next(
-                    (o for o in f.options if re.search(r"(i )?(agree|accept|acknowledge|consent|yes)", o, re.I)), None)
+                    (o for o in f.options if re.search(r"\b(i )?(agree|accept|acknowledge|consent|yes)\b", o, re.I)), None)
                 if choice:
                     f.locator.select_option(label=choice)
                     report["filled"].append({"label": f.label, "value": choice, "source": "consent (required to apply)"})
@@ -238,9 +245,18 @@ def audit(page: Page, report: dict, artifacts: Path) -> None:
         shown = current_value(f)
         expected = written.get(f.label.strip().lower())
         if expected:
+            if f.kind in ("checkbox", "radio"):
+                if shown != "checked":
+                    misplaced.append({"field": f.label[:80], "expected": "ticked", "found": "not ticked"})
+                continue
             head = expected.strip()[:25].lower()
             if head and head not in shown.lower() and shown.strip()[:25].lower() not in expected.lower():
                 misplaced.append({"field": f.label[:80], "expected": expected[:50], "found": shown[:50]})
+        elif f.kind in ("checkbox", "radio") and shown == "checked" and " — " in f.label:
+            # an option ticked on a multi-option question we did not choose for
+            question = f.label.split(" — ")[0].strip().lower()
+            if any(k.split(" — ")[0].strip().lower() == question for k in written):
+                misplaced.append({"field": f.label[:80], "expected": "not ticked", "found": "ticked"})
         elif f.required and not shown and f.kind != "checkbox":
             empty.append(f.label[:80])
     if misplaced or empty:
@@ -342,6 +358,36 @@ def _click_option(page: Page, field, menu, choice: str) -> bool:
         return (field.locator.input_value() or "").strip().lower() == choice.strip().lower() or True
     except Exception:
         return False
+
+
+def _answer_choice(page: Page, field, answer: str) -> str | None:
+    """Apply a yes/no style answer to whatever control type the question uses."""
+    try:
+        if field.kind == "combobox":
+            return choose_option(page, field, answer)
+        if field.kind == "select":
+            choice = _closest_option(answer, field.options)
+            if choice:
+                field.locator.select_option(label=choice)
+            return choice
+        if field.kind in ("radio", "checkbox"):
+            # the field carries its own option word; tick it only if it is the answer
+            option = (field.options[0] if field.options else field.label).strip().lower()
+            if option != answer.strip().lower():
+                return None
+            fresh = find_field(page, field.label, field.kind) or field  # references go stale as the page re-renders
+            fresh.locator.check(timeout=3000)
+            page.wait_for_timeout(200)
+            check = find_field(page, field.label, field.kind)
+            if check and not check.locator.is_checked():
+                return None
+            return answer
+        if field.kind in ("text", "textarea"):
+            field.locator.fill(answer)
+            return answer
+    except Exception:
+        return None
+    return None
 
 
 def _selection_stuck(page: Page, field, choice: str) -> bool:

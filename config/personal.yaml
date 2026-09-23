@@ -20,6 +20,9 @@ facts:
   english_proficiency: "Yes - English is my working language, spoken and written fluently."
   work_arrangement: "Yes - happy with either a B2B contract or a B2C/employee arrangement."
   gdpr_consent: "Yes"
+  # Your own stated answer to accessibility/adjustment questions during hiring.
+  # Leave empty to go back to leaving those questions blank.
+  accommodations_needed: "No"
 
 # Questions the drafting step prepares an answer for. The applier matches real form fields to these.
 # Free-text answers are generated per job from the master profile + that job's description.
@@ -84,6 +87,10 @@ bank:
     question: "Are you happy with a B2B or B2C / contract or employee arrangement?"
     kind: fact
     fact: work_arrangement
+  - key: accommodations
+    question: "Do you require any reasonable accommodations or adjustments during the hiring process?"
+    kind: fact
+    fact: accommodations_needed
   - key: gdpr_consent
     question: "Do you acknowledge the privacy policy / GDPR processing of your data?"
     kind: fact

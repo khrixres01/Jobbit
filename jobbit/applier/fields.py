@@ -42,6 +42,10 @@ NEVER = re.compile(
     r"pronouns?|age range|date of birth|criminal|conviction|felony|background check|accommodations?|"
     r"self-?identif|eeo|equal (employment )?opportunity|voluntary (self-)?disclosure)\b", re.I)
 
+# Accessibility/adjustment questions. Still never AI-answered: filled only from the answer you
+# stated yourself in personal.yaml (facts.accommodations_needed), and skipped when that is empty.
+ACCESSIBILITY = re.compile(r"\b(accommodations?|adjustments?|additional support)\b", re.I)
+
 CONSENT = re.compile(r"\b(privacy (policy|notice)|terms|consent|gdpr|data processing|acknowledge|i agree|i confirm)\b", re.I)
 
 
@@ -92,6 +96,31 @@ def label_for(page: Page, el: Locator) -> str:
     return re.sub(r"\s+", " ", text).strip()[:300]
 
 
+OPTION_WORD = re.compile(r"^(yes|no|prefer not to say|decline to (self-identify|answer)|n/?a|true|false)$", re.I)
+
+
+def group_question(el: Locator) -> str:
+    """Question text for a checkbox/radio whose own label is just its option word.
+
+    Forms often put the question in a paragraph above the options, so the option element alone
+    carries no clue what is being asked.
+    """
+    try:
+        text = el.evaluate(
+            """e => {
+                let node = e.parentElement;
+                for (let i = 0; i < 6 && node; i++, node = node.parentElement) {
+                    const t = (node.innerText || '').trim();
+                    if (t.length > 40) return t;
+                }
+                return '';
+            }""") or ""
+    except Exception:
+        return ""
+    text = re.sub(r"\s+", " ", text)
+    return re.sub(r"\b(yes|no|prefer not to say)\b", "", text, flags=re.I).strip(" -*")[:200]
+
+
 def read_form(page: Page, root: str = "form, [class*='application'], body") -> list[Field]:
     fields: list[Field] = []
     seen_radio_groups: set[str] = set()
@@ -135,6 +164,11 @@ def read_form(page: Page, root: str = "form, [class*='application'], body") -> l
                     "els => els.map(e => (e.closest('label')?.innerText) || e.value || '')") if t.strip()]
             required = bool(el.get_attribute("required") or el.get_attribute("aria-required") == "true")
             label = re.sub(r"\s*select\.\.\.\s*$", "", label_for(page, el), flags=re.I).strip()
+            if kind in ("checkbox", "radio") and OPTION_WORD.match(label):
+                question = group_question(el)
+                if question:
+                    options = [label]           # this control's own option word
+                    label = f"{question} — {label}"
             if not required and label:
                 required = bool(re.search(r"\*\s*$|\(required\)", label, re.I))
             fields.append(Field(el, kind, label, required, options, name))
