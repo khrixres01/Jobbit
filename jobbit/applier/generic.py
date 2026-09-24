@@ -22,6 +22,11 @@ SUBMIT_TEXTS = ["submit application", "submit your application", "submit", "send
 GONE_TEXTS = re.compile(
     r"(404|not found|no longer (accepting|available|open)|position (has been )?(closed|filled)|"
     r"posting (is )?(closed|expired)|this job is no longer)", re.I)
+# Some boards email a code after the submit click and wait for it to be typed back in. Only you can
+# read that email, so the application is handed over with the reason spelled out.
+VERIFY_TEXTS = re.compile(
+    r"(verification code|security code|confirm your email|we (just )?sent (you )?a code|"
+    r"enter the code|check your (e-?mail|inbox) for (a|the) code|one-time (code|password))", re.I)
 CONFIRM_TEXTS = re.compile(
     r"(thank you|thanks for (applying|your application)|application (was )?(received|submitted|sent)|"
     r"we('| ha)?ve received your application|successfully applied|your application has been)", re.I)
@@ -503,6 +508,12 @@ def submit_form(page: Page, artifacts: Path, no_submit: bool) -> Submitted:
         pass
     after = shot(page, artifacts, "after-submit")
     body = page.inner_text("body")[:6000] if page.locator("body").count() else ""
+
+    if VERIFY_TEXTS.search(body):
+        raise ManualAction(
+            "Greenhouse asked for an email verification code to finish — only you can read that email, "
+            "so please complete this one by hand (the code in your inbox expires)",
+            {"screenshot": after, "url": page.url})
 
     if CONFIRM_TEXTS.search(body):
         return Submitted("Submitted — confirmation shown on the page",
