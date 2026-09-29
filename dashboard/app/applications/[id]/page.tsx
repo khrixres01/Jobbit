@@ -4,9 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { BUCKET, supabase } from "@/lib/supabase";
-import { requestApply, setStatus, timeAgo } from "@/lib/data";
+import { setStatus, timeAgo } from "@/lib/data";
 import { Score, StatusBadge } from "@/components/ui";
-import Screening from "@/components/Screening";
 import type { AppEvent, Application, Status } from "@/lib/types";
 
 type Tab = "resume" | "cover" | "jd";
@@ -40,17 +39,6 @@ export default function DetailPage() {
   }, [id]);
   useEffect(() => { load(); }, [load]);
 
-  const apply = async () => {
-    const blanks = (app?.screening_answers ?? []).filter((a) => !a.answer.trim()).length;
-    const warn = blanks > 0
-      ? `\n\n${blanks} screening answer(s) are blank — a form asking those will be handed back to you.`
-      : "";
-    if (!confirm("Submit this application to " + app?.jobs.company + "?" + warn)) return;
-    setBusy(true);
-    try { await requestApply(id); await load(); } catch (e: any) { alert(e.message); }
-    setBusy(false);
-  };
-
   const change = async (s: Status) => {
     setBusy(true);
     try { await setStatus(id, s); await load(); } catch (e: any) { alert(e.message); }
@@ -61,7 +49,6 @@ export default function DetailPage() {
   if (!app) return <div className="page"><p className="muted">Loading…</p></div>;
   const job = app.jobs;
   const s = app.status;
-  const actionable = s === "pending_review" || s === "needs_manual_action";
   const files = tab === "resume"
     ? { pdf: app.tailored_resume_file_url, docx: app.tailored_resume_docx_url }
     : tab === "cover" ? { pdf: app.cover_letter_file_url, docx: app.cover_letter_docx_url } : null;
@@ -86,12 +73,10 @@ export default function DetailPage() {
         <div className="detail-main">
           {app.validation_warnings.length > 0 && (
             <div className="callout callout-warn">
-              <b>⚠ Check before sending.</b> The fabrication guard flagged:
+              <b>⚠ Check before you submit.</b> The fabrication guard flagged:
               <ul>{app.validation_warnings.map((w) => <li key={w}>{w}</li>)}</ul>
             </div>
           )}
-
-          <Screening id={id} answers={app.screening_answers ?? []} onSaved={load} />
 
           <section className="card">
             <div className="tabs">
@@ -115,16 +100,15 @@ export default function DetailPage() {
           <section className="card">
             <h2 className="side-title">Actions</h2>
             <div className="action-stack">
-              <a className="btn" href={job.url} target="_blank" rel="noopener noreferrer">Open job posting ↗</a>
-              {actionable && (
-                <button className="btn btn-primary" disabled={busy} onClick={apply}>Apply</button>
-              )}
-              {s === "queued" && <p className="muted small">Submission is running on GitHub Actions…</p>}
-              {s !== "applied_manually" && s !== "submitted" && (
+              <a className="btn btn-primary" href={job.url} target="_blank" rel="noopener noreferrer">Apply on the company site ↗</a>
+              <p className="muted small">Download the résumé and cover letter below, then apply yourself using the link above.</p>
+              {s !== "applied_manually" && (
                 <button className="btn" disabled={busy} onClick={() => change("applied_manually")}>Mark as applied manually</button>
               )}
-              {actionable && <button className="btn btn-ghost" disabled={busy} onClick={() => change("skipped")}>Skip</button>}
-              {(s === "skipped" || s === "applied_manually") && (
+              {s !== "skipped" && (
+                <button className="btn btn-ghost" disabled={busy} onClick={() => change("skipped")}>Skip</button>
+              )}
+              {s !== "pending_review" && (
                 <button className="btn btn-ghost" disabled={busy} onClick={() => change("pending_review")}>Move back to review</button>
               )}
             </div>

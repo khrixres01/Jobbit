@@ -1,25 +1,17 @@
+// Assist-only: the app never submits, so the only states are the ones you set yourself.
 export type Status =
   | "pending_review"
-  | "queued"
-  | "submitted"
-  | "needs_manual_action"
   | "applied_manually"
   | "skipped";
 
 export const STATUS_ORDER: Status[] = [
   "pending_review",
-  "needs_manual_action",
-  "queued",
-  "submitted",
   "applied_manually",
   "skipped",
 ];
 
 export const STATUS_LABEL: Record<Status, string> = {
-  pending_review: "Pending review",
-  needs_manual_action: "Needs manual action",
-  queued: "Queued",
-  submitted: "Submitted",
+  pending_review: "To review",
   applied_manually: "Applied manually",
   skipped: "Skipped",
 };
@@ -36,7 +28,29 @@ export type Job = {
   posted_date: string | null;
 };
 
-export type ScreeningAnswer = { key: string; question: string; answer: string; source: string; edited: boolean };
+/** A scored job as shown in the ranked browse view, with its tailored docs if they exist yet. */
+export type ScoredJob = {
+  id: string;
+  source: string;
+  title: string;
+  company: string;
+  location_text: string | null;
+  location_eligibility: string;
+  url: string;
+  posted_date: string | null;
+  fit_score: number;
+  fit_rationale: string | null;
+  scored_at: string | null;
+  tailor_requested: boolean;
+  applications: {
+    id: string;
+    status: Status;
+    tailored_resume_file_url: string | null;
+    tailored_resume_docx_url: string | null;
+    cover_letter_file_url: string | null;
+    cover_letter_docx_url: string | null;
+  }[];
+};
 
 export type Application = {
   id: string;
@@ -51,7 +65,6 @@ export type Application = {
   cover_letter_file_url: string | null;
   cover_letter_docx_url: string | null;
   validation_warnings: string[];
-  screening_answers: ScreeningAnswer[];
   status: Status;
   status_detail: string | null;
   created_at: string;

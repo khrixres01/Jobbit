@@ -103,6 +103,10 @@ input:focus, select:focus, .btn:focus-visible, .funnel-row:focus-visible { outli
 .row-detail { color: var(--ink-muted); font-size: .8rem; }
 .row-actions { display: flex; gap: .3rem; }
 .warn-chip { font-size: .75rem; font-weight: 600; color: var(--ink); background: var(--warning-soft); border-radius: 999px; padding: 0 .45rem; }
+.fit-flag { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+  border-radius: 999px; padding: .05rem .45rem; margin-left: .5rem; vertical-align: middle; }
+.fit-best { color: var(--good-ink, #0a7d38); background: var(--good-soft, #e3f6ea); }
+.fit-least { color: var(--ink-muted); background: var(--surface-2, #eee); }
 
 /* ---------- score & status ---------- */
 .score { display: inline-grid; place-items: center; font-weight: 700; font-variant-numeric: tabular-nums; border-radius: 8px;

@@ -1,7 +1,7 @@
 # Jobbit pipeline settings. Secrets live in env vars / GitHub Secrets, never here.
 
 filters:
-  max_age_days: 21           # discard postings older than this (local jobs stay open longer)
+  max_age_days: 14           # discard postings older than this (2-week freshness cap)
   keep_undated: false        # postings with no date can't be verified as recent
   allow_hybrid_in_nigeria: true   # keep hybrid roles located in Nigeria; on-site elsewhere is dropped
   # Cheap title pre-filter before any Claude call. Case-insensitive substring match on title.
@@ -49,11 +49,12 @@ llm:
       tailoring: claude-sonnet-5
 
 scoring:
-  threshold: 70              # applications created only at or above this score
+  threshold: 60              # jobs surface on the dashboard at or above this score (shown as x/10)
   max_scores_per_run: 40     # hard cap on LLM scoring calls per run
   max_scores_per_day: 180    # Gemini free tier is ~250 requests/day on Flash, shared with tailoring
 
 tailoring:
+  auto_tailor_top_n: 5       # per run, auto-tailor only the highest-scoring passing jobs; the rest wait for a "Tailor this job" click
   max_tailors_per_run: 8
   max_tailors_per_day: 30    # each can take up to 2 requests (regeneration on validation failure)
   career_start: 2022-01      # first professional role; used for "N+ years"

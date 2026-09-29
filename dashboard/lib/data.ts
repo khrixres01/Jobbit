@@ -1,7 +1,12 @@
 "use client";
 
 import { supabase } from "./supabase";
-import type { Application, Status } from "./types";
+import type { Application, ScoredJob, Status } from "./types";
+
+/** The fit threshold (0-100) at or above which jobs surface on the dashboard. Shown to you as x/10. */
+export const THRESHOLD = 60;
+/** Only advertise jobs posted within this many days. */
+export const MAX_AGE_DAYS = 14;
 
 export const LIST_COLUMNS =
   "id,fit_score,status,status_detail,created_at,updated_at,validation_warnings," +
@@ -14,10 +19,35 @@ export async function fetchApplications(): Promise<Application[]> {
   return data as unknown as Application[];
 }
 
+/** Ranked browse view: every job scored at/above the threshold and posted within the freshness window,
+ *  best fit first, with its tailored documents (if the pipeline has generated them yet). */
+export async function fetchScoredJobs(threshold = THRESHOLD): Promise<ScoredJob[]> {
+  const cutoff = new Date(Date.now() - MAX_AGE_DAYS * 86400_000).toISOString();
+  const { data, error } = await supabase()
+    .from("jobs")
+    .select(
+      "id,source,title,company,location_text,location_eligibility,url,posted_date,fit_score,fit_rationale,scored_at,tailor_requested," +
+      "applications(id,status,tailored_resume_file_url,tailored_resume_docx_url,cover_letter_file_url,cover_letter_docx_url)"
+    )
+    .is("discard_reason", null)
+    .gte("fit_score", threshold)
+    .not("scored_at", "is", null)
+    .gte("posted_date", cutoff)
+    .order("fit_score", { ascending: false });
+  if (error) throw error;
+  return data as unknown as ScoredJob[];
+}
+
+/** Flag a job for tailoring; the next scrape run generates its resume + cover letter and clears the flag. */
+export async function requestTailor(jobId: string): Promise<void> {
+  const { error } = await supabase().from("jobs").update({ tailor_requested: true }).eq("id", jobId);
+  if (error) throw error;
+}
+
 export type FunnelStage = { key: string; label: string; value: number; hint: string };
 
 /** All-time pipeline funnel, from row counts (head requests: no rows transferred). */
-export async function fetchFunnel(threshold = 70): Promise<FunnelStage[]> {
+export async function fetchFunnel(threshold = THRESHOLD): Promise<FunnelStage[]> {
   const sb = supabase();
   const count = async (build: (q: any) => any) => {
     const { count, error } = await build(sb.from("jobs").select("id", { count: "exact", head: true }));
@@ -36,8 +66,8 @@ export async function fetchFunnel(threshold = 70): Promise<FunnelStage[]> {
     { key: "filtered", label: "Passed filters", value: total - filteredOut,
       hint: "Recent, explicitly remote, relevant title, has an apply URL" },
     { key: "scored", label: "Scored by AI", value: scored, hint: "Fit-scored against your master profile" },
-    { key: "passed", label: `Scored ${threshold}+`, value: passed, hint: "At or above your fit threshold" },
-    { key: "apps", label: "Applications drafted", value: apps, hint: "Tailored resume + cover letter generated" },
+    { key: "passed", label: `Scored ${threshold / 10}+/10`, value: passed, hint: "At or above your fit threshold — shown on the dashboard" },
+    { key: "apps", label: "Tailored docs ready", value: apps, hint: "Resume + cover letter generated (best-fit picks + your requests)" },
   ];
 }
 
@@ -58,17 +88,6 @@ export async function setStatus(id: string, status: Status, detail: string | nul
   const { error } = await sb.from("applications").update({ status, status_detail: detail }).eq("id", id);
   if (error) throw error;
   await sb.from("application_events").insert({ application_id: id, event: status, detail: { via: "dashboard" } });
-}
-
-/** Ask the Edge Function to queue this application and start Workflow 2. */
-export async function requestApply(id: string): Promise<void> {
-  const { data, error } = await supabase().functions.invoke("trigger-apply", { body: { application_id: id } });
-  if (error) {
-    // Edge Function errors carry the useful message in the response body.
-    const body = await (error as any).context?.json?.().catch(() => null);
-    throw new Error(body?.error ?? error.message);
-  }
-  if ((data as any)?.error) throw new Error((data as any).error);
 }
 
 export function timeAgo(iso: string | null): string {

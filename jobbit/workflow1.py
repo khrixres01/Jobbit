@@ -16,8 +16,6 @@ from .config import ROOT, secrets, settings
 from .filters import apply_prefilters, location_rule, recency
 from .models import Job
 from .profile_parser import Profile, parse_profile
-from .recover import sweep_stuck
-from .screening import draft as draft_screening
 from .scoring import FitResult, score
 from .sources import fetch_all
 from .tailoring import tailor
@@ -62,7 +60,6 @@ def score_job(job: Job, profile: Profile, cfg: dict):
 def build_application(job: Job, profile: Profile, cfg: dict, fit) -> tuple[dict, dict]:
     docs = tailor(job, fit, profile, cfg)
     files = documents.render_all(docs, profile, job)
-    screening = draft_screening(job, profile)
     app_id = str(uuid.uuid4())
     row = {
         "id": app_id,
@@ -73,7 +70,6 @@ def build_application(job: Job, profile: Profile, cfg: dict, fit) -> tuple[dict,
         "tailored_resume_text": files["resume_text"],
         "tailored_resume_json": docs.to_json(),
         "cover_letter_text": files["cover_text"],
-        "screening_answers": screening,
         "validation_warnings": docs.warnings,
         "status": "pending_review",
     }
@@ -122,9 +118,7 @@ def dry_run(limit: int) -> None:
         (d / "cover_letter.docx").write_bytes(files["cover_docx"])
         (d / "cover_letter.txt").write_text(files["cover_text"], encoding="utf-8")
         (d / "warnings.txt").write_text("\n".join(row["validation_warnings"]) or "none", encoding="utf-8")
-        (d / "screening.txt").write_text(
-            "\n\n".join(f"Q: {a['question']}\nA: {a['answer'] or '(left for you)'}  [{a['source']}]"
-                        for a in row["screening_answers"]), encoding="utf-8")
+        (d / "apply_link.txt").write_text(j.url, encoding="utf-8")
         log.info("     wrote %s", d.relative_to(ROOT))
 
 
@@ -137,7 +131,6 @@ def run() -> dict:
     run_id = db.start_run("scrape")
     try:
         stats["profile_updated"] = db.sync_profile(profile)
-        stats["recovered_stuck"] = sweep_stuck()
 
         # 1. fetch + dedupe
         jobs, stats["fetched"] = fetch_all()
@@ -177,7 +170,7 @@ def run() -> dict:
         tc = cfg["tailoring"]
         budget = max(0, min(tc["max_tailors_per_run"], tc["max_tailors_per_day"] - db.tailors_today()))
         created = failed = 0
-        for j in db.jobs_to_tailor(sc["threshold"], budget):
+        for j in db.jobs_to_tailor(sc["threshold"], budget, tc["auto_tailor_top_n"]):
             if location_rule(j) == "restricted":  # last check before spending a tailoring call
                 db.discard(j.id, "location")
                 continue
@@ -204,8 +197,8 @@ def run() -> dict:
         # 5. notify
         if created:
             pending = db.pending_review_count()
-            notify.telegram(f"📋 {created} new application{'s' if created != 1 else ''} ready to review "
-                            f"({pending} pending total)\n{secrets().dashboard_url}")
+            notify.telegram(f"📋 {created} new tailored application{'s' if created != 1 else ''} ready to download "
+                            f"({pending} pending review)\n{secrets().dashboard_url}")
         db.finish_run(run_id, stats)
         return stats
     except Exception as e:

@@ -1,29 +1,31 @@
 # Jobbit
 
-Semi-automated remote job search: scrape → filter → score → tailor → review → (you click Apply) → submit.
+Assisted remote job search: scrape → filter → score → tailor → **you review the dashboard and apply yourself**.
+The pipeline never submits applications. It surfaces every job scored **6+/10** and posted in the **last 2 weeks**,
+ranked best fit first, each with its direct apply link. It auto-tailors a résumé + cover letter for the best-fit
+picks; click "Tailor this job" on any other match to queue tailoring on the next run. You download the docs and apply.
 
 ```
 profile/master_profile.md      single source of truth for all generated content
 config/settings.yaml           thresholds, caps, models, title keywords
 config/companies.yaml          Greenhouse / Lever / Ashby boards + feed settings
-supabase/migrations/           schema (run 0001_init.sql)
-supabase/functions/            Edge Functions (trigger-apply — TODO)
+supabase/migrations/           schema (run 0001, 0002, 0003 in order)
 jobbit/                        Python pipeline
   sources/                     one adapter per job source
-  filters.py                   recency / remote / URL / title / location rules
+  filters.py                   recency (14d) / remote / URL / title / location rules
   scoring.py                   LLM fit score + location eligibility + JD focus
   tailoring.py                 fresh summary, tailored resume, cover letter
   validation.py                fabrication guard
   documents.py                 PDF + DOCX rendering
-  workflow1.py                 Workflow 1 entry point
-applier/                       Workflow 2 Playwright applier (TODO)
-dashboard/                     Next.js dashboard (TODO)
-.github/workflows/scrape.yml   Workflow 1 cron (every 4h)
+  workflow1.py                 pipeline entry point (scrape → tailor → store → notify)
+dashboard/                     Next.js dashboard (browse, rank, download, apply yourself)
+.github/workflows/scrape.yml   pipeline cron (every 4h)
 ```
 
-## Setup (Workflow 1)
+## Setup
 
-1. **Supabase**: create the project, open SQL Editor, run `supabase/migrations/0001_init.sql`.
+1. **Supabase**: create the project, open SQL Editor, run the migrations in `supabase/migrations/` in order
+   (`0001_init.sql`, `0002_screening.sql`, `0003_assist_only.sql`).
    Check the `owner_email` insert near the top is the email you'll log into the dashboard with.
 2. **Telegram**: message @BotFather → `/newbot` → token. Send your bot a message, then open
    `https://api.telegram.org/bot<TOKEN>/getUpdates` to read your `chat.id`.

@@ -8,7 +8,7 @@ import { Score, StatusBadge } from "./ui";
 export default function AppRow({ app, onStatus, busy }:
   { app: Application; onStatus?: (id: string, s: Status) => void; busy?: boolean }) {
   const j = app.jobs;
-  const actionable = app.status === "pending_review" || app.status === "needs_manual_action";
+  const actionable = app.status === "pending_review";
   return (
     <div className="row">
       <Score value={app.fit_score} />
@@ -29,6 +29,7 @@ export default function AppRow({ app, onStatus, busy }:
         {timeAgo(app.created_at)}
       </span>
       <span className="row-actions">
+        <a className="btn btn-sm btn-primary" href={j.url} target="_blank" rel="noopener noreferrer">Apply ↗</a>
         <Link href={`/applications/${app.id}`} className="btn btn-sm">Review</Link>
         {actionable && onStatus && (
           <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => onStatus(app.id, "skipped")}>Skip</button>

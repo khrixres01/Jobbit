@@ -4,9 +4,6 @@ import { STATUS_LABEL, type Status } from "@/lib/types";
 // Status = reserved status colors, always paired with an icon + label (never color alone).
 const STATUS_TONE: Record<Status, { tone: string; icon: string }> = {
   pending_review: { tone: "info", icon: "●" },
-  needs_manual_action: { tone: "serious", icon: "▲" },
-  queued: { tone: "warning", icon: "◷" },
-  submitted: { tone: "good", icon: "✓" },
   applied_manually: { tone: "good", icon: "✓" },
   skipped: { tone: "muted", icon: "–" },
 };
@@ -22,10 +19,11 @@ export function StatusBadge({ status }: { status: Status }) {
 }
 
 export function Score({ value, size = "md" }: { value: number; size?: "md" | "lg" }) {
-  const band = value >= 85 ? "high" : value >= 70 ? "mid" : "low";
+  const band = value >= 80 ? "high" : value >= 60 ? "mid" : "low";
+  const outOf10 = (value / 10).toFixed(1);
   return (
-    <span className={`score score-${size} score-${band}`} title={`Fit score ${value}/100`}>
-      {value}
+    <span className={`score score-${size} score-${band}`} title={`Fit score ${outOf10}/10`}>
+      {outOf10}
     </span>
   );
 }

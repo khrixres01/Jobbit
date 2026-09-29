@@ -85,13 +85,18 @@ def jobs_to_score(limit: int) -> list[Job]:
     return [_row_to_job(r) for r in rows]
 
 
-def jobs_to_tailor(threshold: int, limit: int) -> list[Job]:
-    """Scored at/above threshold, not discarded, and no application yet. Highest score first."""
+def jobs_to_tailor(threshold: int, limit: int, top_n: int) -> list[Job]:
+    """Scored at/above threshold, not discarded, and no application (tailored docs) yet.
+
+    Auto-tailors the `top_n` highest-scoring jobs, plus any job flagged `tailor_requested`
+    by a "Tailor this job" click in the dashboard. Highest score first, capped at `limit`."""
     cutoff = (datetime.now(timezone.utc) - timedelta(days=settings()["filters"]["max_age_days"])).isoformat()
     rows = (sb().table("jobs").select("*, applications(id)")
             .is_("discard_reason", "null").gte("fit_score", threshold).gte("scored_at", cutoff)
-            .order("fit_score", desc=True).limit(limit * 3).execute().data)
-    return [_row_to_job(r) for r in rows if not r.get("applications")][:limit]
+            .order("fit_score", desc=True).execute().data)
+    pending = [r for r in rows if not r.get("applications")]
+    chosen = [r for i, r in enumerate(pending) if i < top_n or r.get("tailor_requested")]
+    return [_row_to_job(r) for r in chosen][:limit]
 
 
 def save_score(job: Job) -> None:
@@ -127,6 +132,8 @@ def insert_application(row: dict) -> None:
         "application_id": row["id"], "event": "created",
         "detail": {"fit_score": row["fit_score"], "warnings": len(row["validation_warnings"])},
     }).execute()
+    # Clear the on-demand request flag now that the docs exist.
+    sb().table("jobs").update({"tailor_requested": False}).eq("id", row["job_id"]).execute()
 
 
 def pending_review_count() -> int:
@@ -143,23 +150,3 @@ def finish_run(run_id: int, stats: dict, error: str | None = None) -> None:
     sb().table("pipeline_runs").update({
         "finished_at": datetime.now(timezone.utc).isoformat(), "stats": stats, "error": error,
     }).eq("id", run_id).execute()
-
-
-# --------------------------------------------------------------------------- workflow 2
-def get_application(application_id: str) -> dict | None:
-    rows = (sb().table("applications").select("*, jobs(*)")
-            .eq("id", application_id).limit(1).execute().data)
-    return rows[0] if rows else None
-
-
-def set_application_status(application_id: str, status: str, detail: str | None = None) -> None:
-    sb().table("applications").update({"status": status, "status_detail": detail}).eq("id", application_id).execute()
-
-
-def add_event(application_id: str, event: str, detail: dict | None = None) -> None:
-    sb().table("application_events").insert(
-        {"application_id": application_id, "event": event, "detail": detail or {}}).execute()
-
-
-def download(path: str) -> bytes:
-    return sb().storage.from_(settings()["storage"]["bucket"]).download(path)
