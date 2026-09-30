@@ -35,7 +35,9 @@ export async function fetchScoredJobs(threshold = THRESHOLD): Promise<ScoredJob[
     .gte("posted_date", cutoff)
     .order("fit_score", { ascending: false });
   if (error) throw error;
-  return data as unknown as ScoredJob[];
+  // Jobs you've applied to or skipped live on the Applications page, not here.
+  const done = ["applied_manually", "skipped"];
+  return (data as unknown as ScoredJob[]).filter((j) => !done.includes(j.application?.status ?? ""));
 }
 
 /** Ask the Edge Function to tailor this job now: it flags the job and fires a per-job GitHub Actions
