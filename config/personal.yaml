@@ -1,11 +1,10 @@
-# Answers to standard application questions that aren't in master_profile.md.
-# Edit these — they are used verbatim on forms, so say exactly what you'd say yourself.
-# Anything left empty is treated as "unknown": the applier will not guess, and will hand the
-# application back to you as needs_manual_action rather than inventing an answer.
+# Your standard answers to common application questions that aren't in master_profile.md.
+# Jobbit no longer fills forms for you — this is a personal reference to copy from when you
+# apply manually. Nothing here is read by the pipeline.
 
 facts:
   work_authorization: "I am a Nigerian citizen based in Lagos, authorized to work in Nigeria. I do not hold work authorization for the US, UK, or EU and would need sponsorship for roles requiring it."
-  requires_sponsorship: "yes"        
+  requires_sponsorship: "yes"
   location: "Lagos, Nigeria"
   country: "Nigeria"
   timezone: "WAT (UTC+1)"
@@ -14,98 +13,9 @@ facts:
   notice_period: "1 month"
   earliest_start: "One month from offer."
   salary_expectation: "USD 45,000 - 60,000/year, negotiable"
-  years_experience: "auto"             # 'auto' computes from career_start in settings.yaml
   portfolio_url: "https://github.com/khrixres01"
   referral_source: "Company careers page"
   english_proficiency: "Yes - English is my working language, spoken and written fluently."
   work_arrangement: "Yes - happy with either a B2B contract or a B2C/employee arrangement."
   gdpr_consent: "Yes"
-  # Your own stated answer to accessibility/adjustment questions during hiring.
-  # Leave empty to go back to leaving those questions blank.
   accommodations_needed: "No"
-
-# Questions the drafting step prepares an answer for. The applier matches real form fields to these.
-# Free-text answers are generated per job from the master profile + that job's description.
-bank:
-  - key: why_company
-    question: "Why do you want to work here / what interests you about this company?"
-    kind: generated
-    max_words: 120
-  - key: why_you
-    question: "Why are you a good fit for this role?"
-    kind: generated
-    max_words: 120
-  - key: relevant_experience
-    question: "Describe your most relevant experience for this role."
-    kind: generated
-    max_words: 150
-  - key: years_experience
-    question: "How many years of relevant experience do you have?"
-    kind: fact
-    fact: years_experience
-  - key: work_authorization
-    question: "Are you authorized to work in the hiring country / do you need sponsorship?"
-    kind: fact
-    fact: work_authorization
-  - key: location
-    question: "Where are you located?"
-    kind: fact
-    fact: location
-  - key: country
-    question: "What is your country of residence?"
-    kind: fact
-    fact: country
-  - key: timezone
-    question: "What timezone are you in / can you overlap with our hours?"
-    kind: fact
-    fact: timezone_overlap
-  - key: notice_period
-    question: "What is your notice period / earliest start date?"
-    kind: fact
-    fact: notice_period
-  - key: salary_expectation
-    question: "What are your salary expectations?"
-    kind: fact
-    fact: salary_expectation
-  - key: relocation
-    question: "Are you willing to relocate?"
-    kind: fact
-    fact: willing_to_relocate
-  - key: portfolio
-    question: "Portfolio / GitHub / personal site"
-    kind: fact
-    fact: portfolio_url
-  - key: english_proficiency
-    question: "Do you have English proficiency / what is your level of English?"
-    kind: fact
-    fact: english_proficiency
-  - key: referral_source
-    question: "Where did you hear about us / how did you find this role?"
-    kind: fact
-    fact: referral_source
-  - key: work_arrangement
-    question: "Are you happy with a B2B or B2C / contract or employee arrangement?"
-    kind: fact
-    fact: work_arrangement
-  - key: accommodations
-    question: "Do you require any reasonable accommodations or adjustments during the hiring process?"
-    kind: fact
-    fact: accommodations_needed
-  - key: gdpr_consent
-    question: "Do you acknowledge the privacy policy / GDPR processing of your data?"
-    kind: fact
-    fact: gdpr_consent
-
-# Never answered automatically: these go to you, or are left blank on the form.
-# Demographic/diversity questions (race, gender, disability, veteran status) are always left blank —
-# they are voluntary, and the applier must not answer them on your behalf.
-never_auto:
-  - demographic
-  - eeoc
-  - veteran
-  - disability
-  - gender
-  - race
-  - ethnicity
-  - criminal
-  - background_check

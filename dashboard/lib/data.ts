@@ -38,10 +38,16 @@ export async function fetchScoredJobs(threshold = THRESHOLD): Promise<ScoredJob[
   return data as unknown as ScoredJob[];
 }
 
-/** Flag a job for tailoring; the next scrape run generates its resume + cover letter and clears the flag. */
+/** Ask the Edge Function to tailor this job now: it flags the job and fires a per-job GitHub Actions
+ *  run. Documents appear in ~2-3 minutes; the browse view polls until they land. */
 export async function requestTailor(jobId: string): Promise<void> {
-  const { error } = await supabase().from("jobs").update({ tailor_requested: true }).eq("id", jobId);
-  if (error) throw error;
+  const { data, error } = await supabase().functions.invoke("trigger-tailor", { body: { job_id: jobId } });
+  if (error) {
+    // Edge Function errors carry the useful message in the response body.
+    const body = await (error as any).context?.json?.().catch(() => null);
+    throw new Error(body?.error ?? error.message);
+  }
+  if ((data as any)?.error) throw new Error((data as any).error);
 }
 
 export type FunnelStage = { key: string; label: string; value: number; hint: string };

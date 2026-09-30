@@ -76,6 +76,16 @@ def build_application(job: Job, profile: Profile, cfg: dict, fit) -> tuple[dict,
     return row, files
 
 
+def store_application(row: dict, files: dict) -> None:
+    """Upload the four document files to storage and insert the application row."""
+    base = row["id"]
+    row["tailored_resume_file_url"] = db.upload(f"{base}/resume.pdf", files["resume_pdf"], "application/pdf")
+    row["tailored_resume_docx_url"] = db.upload(f"{base}/resume.docx", files["resume_docx"], DOCX)
+    row["cover_letter_file_url"] = db.upload(f"{base}/cover_letter.pdf", files["cover_pdf"], "application/pdf")
+    row["cover_letter_docx_url"] = db.upload(f"{base}/cover_letter.docx", files["cover_docx"], DOCX)
+    db.insert_application(row)
+
+
 def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:60]
 
@@ -177,12 +187,7 @@ def run() -> dict:
             try:
                 fit = fits.get(j.id) or _fit_from_row(j)
                 row, files = build_application(j, profile, cfg, fit)
-                base = row["id"]
-                row["tailored_resume_file_url"] = db.upload(f"{base}/resume.pdf", files["resume_pdf"], "application/pdf")
-                row["tailored_resume_docx_url"] = db.upload(f"{base}/resume.docx", files["resume_docx"], DOCX)
-                row["cover_letter_file_url"] = db.upload(f"{base}/cover_letter.pdf", files["cover_pdf"], "application/pdf")
-                row["cover_letter_docx_url"] = db.upload(f"{base}/cover_letter.docx", files["cover_docx"], DOCX)
-                db.insert_application(row)
+                store_application(row, files)
                 created += 1
             except llm.QuotaExhausted as e:
                 log.warning("tailoring stopped: %s (remaining jobs wait for the next run)", e)

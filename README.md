@@ -9,7 +9,8 @@ picks; click "Tailor this job" on any other match to queue tailoring on the next
 profile/master_profile.md      single source of truth for all generated content
 config/settings.yaml           thresholds, caps, models, title keywords
 config/companies.yaml          Greenhouse / Lever / Ashby boards + feed settings
-supabase/migrations/           schema (run 0001, 0002, 0003 in order)
+supabase/migrations/           schema (run 0001–0004 in order)
+supabase/functions/            trigger-tailor Edge Function (on-demand "Tailor this job")
 jobbit/                        Python pipeline
   sources/                     one adapter per job source
   filters.py                   recency (14d) / remote / URL / title / location rules
@@ -18,9 +19,18 @@ jobbit/                        Python pipeline
   validation.py                fabrication guard
   documents.py                 PDF + DOCX rendering
   workflow1.py                 pipeline entry point (scrape → tailor → store → notify)
+  tailor_one.py                tailor a single job on demand (--job <uuid>)
 dashboard/                     Next.js dashboard (browse, rank, download, apply yourself)
 .github/workflows/scrape.yml   pipeline cron (every 4h)
+.github/workflows/tailor.yml   per-job tailoring, fired by the dashboard button
 ```
+
+## On-demand tailoring
+
+Best-fit jobs (`tailoring.auto_tailor_top_n`) are tailored automatically each run. For anything else,
+the dashboard's **Tailor this job** button calls the `trigger-tailor` Edge Function, which fires
+`tailor.yml` for that one job; documents land in ~2-3 minutes. Setup: deploy the function and add a
+GitHub PAT (see `supabase/functions/README.md`).
 
 ## Setup
 

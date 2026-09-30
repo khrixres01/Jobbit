@@ -99,6 +99,15 @@ def jobs_to_tailor(threshold: int, limit: int, top_n: int) -> list[Job]:
     return [_row_to_job(r) for r in chosen][:limit]
 
 
+def get_job(job_id: str) -> Job | None:
+    rows = sb().table("jobs").select("*").eq("id", job_id).limit(1).execute().data
+    return _row_to_job(rows[0]) if rows else None
+
+
+def has_application(job_id: str) -> bool:
+    return bool(sb().table("applications").select("id").eq("job_id", job_id).limit(1).execute().data)
+
+
 def save_score(job: Job) -> None:
     sb().table("jobs").update({
         "fit_score": job.fit_score, "fit_rationale": job.fit_rationale,

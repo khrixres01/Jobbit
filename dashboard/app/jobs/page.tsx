@@ -28,14 +28,23 @@ export default function JobsPage() {
     fetchScoredJobs().then(setJobs).catch((e) => setError(e.message)), []);
   useEffect(() => { load(); }, [load]);
 
+  const hasDocs = (j: ScoredJob) =>
+    !!(j.applications?.[0]?.tailored_resume_file_url || j.applications?.[0]?.cover_letter_file_url);
+
+  // While any job is being tailored (flagged but no docs yet), poll so the download buttons
+  // appear on their own when the GitHub Actions run finishes (~2-3 min).
+  const pending = !!jobs?.some((j) => j.tailor_requested && !hasDocs(j));
+  useEffect(() => {
+    if (!pending) return;
+    const t = setInterval(load, 15_000);
+    return () => clearInterval(t);
+  }, [pending, load]);
+
   const onTailor = async (jobId: string) => {
     setBusy(true);
     try { await requestTailor(jobId); await load(); } catch (e: any) { alert(e.message); }
     setBusy(false);
   };
-
-  const hasDocs = (j: ScoredJob) =>
-    !!(j.applications?.[0]?.tailored_resume_file_url || j.applications?.[0]?.cover_letter_file_url);
 
   const shown = useMemo(() => {
     if (!jobs) return [];
