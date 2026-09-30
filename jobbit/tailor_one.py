@@ -31,11 +31,17 @@ def run(job_id: str) -> str:
     if db.has_application(job_id):
         log.info("job already has tailored documents; nothing to do")
         db.set_tailor_requested(job_id, False)
+        notify.telegram(f"ℹ️ Already tailored\n{job.title} @ {job.company}\n{secrets().dashboard_url}/jobs")
         return "exists"
     if location_rule(job) == "restricted":
+        # The job was shown as eligible when scored, but the current location rule rejects it. Say so
+        # (and fail the run) instead of quietly discarding it — otherwise it just vanishes from the dashboard.
         db.set_tailor_requested(job_id, False)
         db.discard(job_id, "location")
-        return "restricted"
+        reason = f"location {job.location_text!r} excludes Nigeria — job discarded, not tailored"
+        log.error("skipped %s: %s", job_id, reason)
+        notify.telegram(f"🚫 Not tailored\n{job.title} @ {job.company}\n\n{reason}")
+        raise SystemExit(reason)
 
     try:
         row, files = build_application(job, profile, cfg, _fit_from_row(job))
