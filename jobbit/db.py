@@ -108,6 +108,10 @@ def has_application(job_id: str) -> bool:
     return bool(sb().table("applications").select("id").eq("job_id", job_id).limit(1).execute().data)
 
 
+def set_tailor_requested(job_id: str, value: bool) -> None:
+    sb().table("jobs").update({"tailor_requested": value}).eq("id", job_id).execute()
+
+
 def save_score(job: Job) -> None:
     sb().table("jobs").update({
         "fit_score": job.fit_score, "fit_rationale": job.fit_rationale,

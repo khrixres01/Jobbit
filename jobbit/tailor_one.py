@@ -30,13 +30,26 @@ def run(job_id: str) -> str:
         raise SystemExit(f"job {job_id} not found")
     if db.has_application(job_id):
         log.info("job already has tailored documents; nothing to do")
+        db.set_tailor_requested(job_id, False)
         return "exists"
     if location_rule(job) == "restricted":
+        db.set_tailor_requested(job_id, False)
         db.discard(job_id, "location")
         return "restricted"
 
-    row, files = build_application(job, profile, cfg, _fit_from_row(job))
-    store_application(row, files)  # also clears tailor_requested
+    try:
+        row, files = build_application(job, profile, cfg, _fit_from_row(job))
+        store_application(row, files)  # also clears tailor_requested
+    except Exception as e:
+        # Clear the flag so the row leaves "Tailoring queued…" and shows "Tailor this job" again to retry,
+        # and tell you why (most often Gemini's daily quota).
+        db.set_tailor_requested(job_id, False)
+        reason = "Gemini quota is exhausted for today — try again tomorrow" if isinstance(e, llm.QuotaExhausted) \
+            else f"{type(e).__name__}: {e}"
+        log.error("tailoring failed for %s: %s", job_id, reason)
+        notify.telegram(f"⚠️ Couldn't tailor\n{job.title} @ {job.company}\n\n{reason}")
+        raise SystemExit(reason)
+
     log.info("tailored %s @ %s", job.title, job.company)
     notify.telegram(f"📄 Tailored on request\n{job.title} @ {job.company}\n{secrets().dashboard_url}/applications/{row['id']}")
     return "tailored"
