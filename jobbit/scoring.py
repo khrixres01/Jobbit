@@ -21,7 +21,7 @@ SCORE_TOOL = {
         "properties": {
             "fit_score": {"type": "integer", "minimum": 0, "maximum": 100},
             "rationale": {"type": "string", "description": "2-3 sentences: strongest matches and key gaps."},
-            "location_eligibility": {"type": "string", "enum": ["worldwide", "includes_nigeria", "restricted", "unknown"]},
+            "location_eligibility": {"type": "string", "enum": ["worldwide", "includes_nigeria", "visa_sponsorship", "restricted", "unknown"]},
             "seniority": {"type": "string", "enum": SENIORITY},
             "focus": {"type": "string", "enum": FOCUS_TYPES},
         },
@@ -29,7 +29,7 @@ SCORE_TOOL = {
     },
 }
 
-SYSTEM = """You screen remote job postings for one candidate, whose complete master profile follows.
+SYSTEM = """You screen job postings for one candidate, whose complete master profile follows.
 Score fit 0-100 using ONLY facts in the profile:
 - 85-100: core requirements met with direct experience; seniority matches.
 - 70-84: most requirements met; minor gaps or adjacent tools.
@@ -39,8 +39,10 @@ Required skills the profile lacks count heavily; nice-to-haves count lightly. Ch
 including Core Skill Categories, before calling a skill missing. Use the experience figure given in the message.
 The candidate lives in Lagos, Nigeria. location_eligibility:
 - worldwide: open to any country
-- includes_nigeria: explicitly includes Nigeria, Africa, or EMEA
-- restricted: limited to countries/regions/timezones excluding Nigeria, or requires work authorization elsewhere (e.g. US-only)
+- includes_nigeria: located in Nigeria, or remote and explicitly includes Nigeria, Africa, or EMEA
+- visa_sponsorship: based outside Nigeria but offers visa sponsorship or relocation support
+- restricted: limited to countries/regions/timezones excluding Nigeria, requires work authorization elsewhere
+  (e.g. US-only), or on-site/hybrid outside Nigeria with no sponsorship
 - unknown: the posting doesn't say
 seniority is the level the JD hires for. focus is the JD's primary emphasis.
 

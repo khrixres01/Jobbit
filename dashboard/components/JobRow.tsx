@@ -28,6 +28,7 @@ export default function JobRow({ job, flag, onTailor, onDownload, busy }: {
         </span>
         <span className="row-meta">
           {job.company} · {job.location_text || "Remote"} · {job.source}
+          {job.location_eligibility === "visa_sponsorship" && <> · visa sponsorship</>}
           {job.posted_date && <> · posted {timeAgo(job.posted_date)}</>}
         </span>
         {job.fit_rationale && <span className="row-detail">{job.fit_rationale}</span>}

@@ -25,9 +25,19 @@ _JD_RESTRICTED = re.compile(
 )
 _OPEN = re.compile(r"\b(worldwide|anywhere|global|globally|any location|all locations)\b", re.I)
 _INCLUDES_NG = re.compile(r"\b(nigeria|africa|emea|lagos|west africa|gmt\+1|wat)\b", re.I)
+# Physically in Nigeria (for on-site/hybrid roles, where "EMEA" or "Africa" doesn't mean you can commute).
+_IN_NG = re.compile(r"\b(nigeria|lagos|abuja|port harcourt|ibadan)\b", re.I)
 
-
-_HYBRID = re.compile(r"\bhybrid\b", re.I)
+# An offer of visa sponsorship or relocation, judged per sentence; a sentence that also negates it
+# ("we are unable to sponsor visas", "relocation is not provided") doesn't count.
+_SPONSOR = re.compile(
+    r"\b(?:visa|work permit|h-?1b|skilled worker)\b[^.\n]{0,25}\bsponsor"
+    r"|\bsponsor(?:s|ship|ing)?\b[^.\n]{0,25}\b(?:visas?|work permits?|h-?1b|skilled worker)\b"
+    r"|\brelocation (?:assistance|support|package|allowance|bonus|budget|(?:is )?(?:provided|offered|available))"
+    r"|\bhelp(?:ing)? (?:you )?relocate\b",
+    re.I,
+)
+_NEGATION = re.compile(r"\b(?:no|not|unable|cannot|can't|won't|don't|doesn't|without|unavailable)\b|n't\b", re.I)
 
 
 def _words(title: str, terms: list[str]) -> bool:
@@ -42,12 +52,20 @@ def recency(job: Job, max_age_days: int, keep_undated: bool) -> str | None:
     return "stale" if posted < datetime.now(timezone.utc) - timedelta(days=max_age_days) else None
 
 
-def remote(job: Job, allow_hybrid_in_nigeria: bool = True) -> str | None:
-    """Keep fully-remote jobs, plus hybrid roles inside Nigeria (commutable). Drop on-site."""
-    if job.remote:
-        return None
-    where = f'{job.location_text} {job.jd_text[:2000]}'
-    if allow_hybrid_in_nigeria and _HYBRID.search(f'{job.title} {where}') and _INCLUDES_NG.search(where):
+def offers_sponsorship(text: str) -> bool:
+    return any(_SPONSOR.search(s) and not _NEGATION.search(s) for s in re.split(r"[.\n]", text or ""))
+
+
+def in_nigeria(job: Job) -> bool:
+    """Located in Nigeria: by location_text, or by the JD's opening when location_text names no place."""
+    loc = job.location_text or ""
+    return bool(_IN_NG.search(loc) or (not _names_a_place(loc) and _IN_NG.search((job.jd_text or "")[:2000])))
+
+
+def work_mode(job: Job) -> str | None:
+    """Keep remote jobs, any job in Nigeria (on-site and hybrid too), and on-site/hybrid jobs abroad
+    that offer visa sponsorship or relocation. Drop other on-site/hybrid jobs abroad."""
+    if job.remote or in_nigeria(job) or offers_sponsorship(job.jd_text):
         return None
     return "not_remote"
 
@@ -73,11 +91,17 @@ def _names_a_place(loc: str) -> bool:
 
 
 def location_rule(job: Job) -> str:
-    """Keyword classification of location_text, then of restriction phrases in the JD.
+    """Can the candidate (in Lagos) take this job? Nigeria-located, or offering visa sponsorship/relocation,
+    is eligible in any work mode; otherwise the job must be remote and not limited to places excluding
+    Nigeria. Keyword classification of location_text, then of restriction phrases in the JD.
     'unknown' is resolved by the LLM scoring call."""
     loc = job.location_text or ""
-    if _INCLUDES_NG.search(loc):
+    if in_nigeria(job) or (job.remote and _INCLUDES_NG.search(loc)):
         return "includes_nigeria"
+    if offers_sponsorship(job.jd_text):
+        return "visa_sponsorship"
+    if not job.remote:
+        return "restricted"  # on-site/hybrid abroad without sponsorship: you'd have to already live there
     if _OPEN.search(loc):
         return "worldwide"
     if _RESTRICTED.search(loc) or _names_a_place(loc):
@@ -92,7 +116,7 @@ def apply_prefilters(job: Job, cfg: dict) -> str | None:
     f = cfg["filters"]
     for reason in (
         has_url(job),
-        remote(job, f.get("allow_hybrid_in_nigeria", True)),
+        work_mode(job),
         recency(job, f["max_age_days"], f["keep_undated"]),
         title_keywords(job, f["title_include"], f["title_exclude"]),
     ):
