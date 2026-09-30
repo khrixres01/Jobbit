@@ -9,11 +9,12 @@ const STATUS_TONE: Record<Status, { tone: string; icon: string }> = {
 };
 
 export function StatusBadge({ status }: { status: Status }) {
-  const t = STATUS_TONE[status];
+  // The DB enum still holds statuses from the old auto-apply pipeline; show those plainly instead of crashing.
+  const t = STATUS_TONE[status] ?? { tone: "muted", icon: "•" };
   return (
     <span className={`status status-${t.tone}`}>
       <span className="status-icon" aria-hidden>{t.icon}</span>
-      {STATUS_LABEL[status]}
+      {STATUS_LABEL[status] ?? String(status).replace(/_/g, " ")}
     </span>
   );
 }
