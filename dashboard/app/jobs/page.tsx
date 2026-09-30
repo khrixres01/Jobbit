@@ -29,7 +29,7 @@ export default function JobsPage() {
   useEffect(() => { load(); }, [load]);
 
   const hasDocs = (j: ScoredJob) =>
-    !!(j.applications?.[0]?.tailored_resume_file_url || j.applications?.[0]?.cover_letter_file_url);
+    !!(j.application?.tailored_resume_file_url || j.application?.cover_letter_file_url);
 
   // While any job is being tailored (flagged but no docs yet), poll so the download buttons
   // appear on their own when the GitHub Actions run finishes (~2-3 min).

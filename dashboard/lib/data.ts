@@ -27,7 +27,7 @@ export async function fetchScoredJobs(threshold = THRESHOLD): Promise<ScoredJob[
     .from("jobs")
     .select(
       "id,source,title,company,location_text,location_eligibility,url,posted_date,fit_score,fit_rationale,scored_at,tailor_requested," +
-      "applications(id,status,tailored_resume_file_url,tailored_resume_docx_url,cover_letter_file_url,cover_letter_docx_url)"
+      "application:applications(id,status,tailored_resume_file_url,tailored_resume_docx_url,cover_letter_file_url,cover_letter_docx_url)"
     )
     .is("discard_reason", null)
     .gte("fit_score", threshold)

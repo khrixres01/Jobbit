@@ -14,7 +14,7 @@ export default function JobRow({ job, flag, onTailor, onDownload, busy }: {
   onDownload: (path: string | null) => void;
   busy?: boolean;
 }) {
-  const app = job.applications?.[0];
+  const app = job.application;
   const hasDocs = !!(app?.tailored_resume_file_url || app?.cover_letter_file_url);
 
   return (

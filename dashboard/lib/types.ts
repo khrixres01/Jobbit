@@ -42,14 +42,15 @@ export type ScoredJob = {
   fit_rationale: string | null;
   scored_at: string | null;
   tailor_requested: boolean;
-  applications: {
+  /** applications.job_id is unique, so PostgREST embeds a single object (or null), not an array. */
+  application: {
     id: string;
     status: Status;
     tailored_resume_file_url: string | null;
     tailored_resume_docx_url: string | null;
     cover_letter_file_url: string | null;
     cover_letter_docx_url: string | null;
-  }[];
+  } | null;
 };
 
 export type Application = {
