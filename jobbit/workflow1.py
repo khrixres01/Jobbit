@@ -156,7 +156,7 @@ def run() -> dict:
         # 3. score (new + backlog), bounded by per-run and per-day caps
         sc = cfg["scoring"]
         budget = max(0, min(sc["max_scores_per_run"], sc["max_scores_per_day"] - db.scores_today()))
-        scored, fits = Counter(), {}
+        scored, fits, matches = Counter(), {}, []
         f = cfg["filters"]
         for j in db.jobs_to_score(budget):
             if recency(j, f["max_age_days"], f["keep_undated"]):
@@ -174,6 +174,8 @@ def run() -> dict:
                 continue
             db.save_score(j)
             scored[j.discard_reason or "above_threshold"] += 1
+            if not j.discard_reason:
+                matches.append(j)  # now visible on the dashboard's Matching jobs page
         stats["scoring"] = dict(scored)
 
         # 4. tailor + documents + applications
@@ -200,15 +202,32 @@ def run() -> dict:
         stats["applications_created"], stats["tailor_failed"] = created, failed
 
         # 5. notify
-        if created:
-            pending = db.pending_review_count()
-            notify.telegram(f"📋 {created} new tailored application{'s' if created != 1 else ''} ready to download "
-                            f"({pending} pending review)\n{secrets().dashboard_url}")
+        if matches or created:
+            notify.telegram(_summary_message(matches, created))
         db.finish_run(run_id, stats)
         return stats
     except Exception as e:
         db.finish_run(run_id, stats, error=repr(e))
         raise
+
+
+def _summary_message(matches: list[Job], created: int, show: int = 10) -> str:
+    """One Telegram message per run: the jobs that just landed on the portal, best fit first, plus
+    how many got tailored docs."""
+    url = secrets().dashboard_url
+    lines = []
+    if matches:
+        matches = sorted(matches, key=lambda j: j.fit_score or 0, reverse=True)
+        n = len(matches)
+        lines.append(f"🆕 {n} new matching job{'s' if n != 1 else ''} on Jobbit")
+        lines += [f"• {(j.fit_score or 0) / 10:.1f}/10  {j.title} @ {j.company}" for j in matches[:show]]
+        if n > show:
+            lines.append(f"…and {n - show} more")
+    if created:
+        lines.append(f"📄 {created} with tailored résumé + cover letter ready "
+                     f"({db.pending_review_count()} pending review)")
+    lines.append(f"\n👉 Go check them out: {url}/jobs" if matches else f"\n{url}")
+    return "\n".join(lines)
 
 
 DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
